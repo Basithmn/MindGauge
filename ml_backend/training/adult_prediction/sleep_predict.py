@@ -1,0 +1,79 @@
+import joblib
+import pandas as pd
+import numpy as np
+import re
+import os
+
+# --- 1. Model Loading ---
+MODEL_PATH = '../../models/adult_model/sleep_lgbm_model.pkl'
+ENCODER_PATH = '../../models/adult_model/sleep_label_encoder.pkl'
+
+try:
+    model = joblib.load(MODEL_PATH) 
+    le = joblib.load(ENCODER_PATH) 
+except FileNotFoundError:
+    print(f"FATAL ERROR: Sleep model files not found at {MODEL_PATH}.")
+    exit()
+
+# --- 2. Reverse Scoring Configuration ---
+# Items at index 0, 1, 2, and 3 are satisfaction-based and must be reversed.
+SLEEP_REVERSE_COLS_INDEX = [0, 1, 2, 3] 
+
+def sanitize_name(name):
+    """Applies the exact same sanitization used during training."""
+    name = str(name).strip().replace(' ', '_').replace('(', '').replace(')', '')
+    name = name.replace(',', '_').replace('.', '_').replace('-', '_').replace(':', '_')
+    name = re.sub(r'__+', '_', name).strip('_')
+    return name
+
+def predict_sleep_severity(raw_scores):
+    """
+    Accepts 8 raw scores (1-5 scale) and calculates 10 features (8 items + TR + PS).
+    Includes internal logic for reverse scoring.
+    """
+    if len(raw_scores) != 8:
+        raise ValueError("Input must contain exactly 8 scores for the Sleep Disturbance scale.")
+        
+    # Step 1: Handle Reverse Scoring (Score = 6 - Raw_Score)
+    processed_scores = list(raw_scores)
+    for i in SLEEP_REVERSE_COLS_INDEX:
+        processed_scores[i] = 6 - processed_scores[i]
+            
+    # Step 2: Calculate Total Raw Score (TR) and Prorated Score (PS)
+    tr = sum(processed_scores)
+    ps = tr
+    
+    # Step 3: Assemble the 10-Feature Input List
+    input_list = processed_scores + [tr, ps]
+    
+    symptom_names = [f'Q{i}' for i in range(1, 9)]
+    feature_columns = [
+        sanitize_name(name) for name in symptom_names
+    ] + [
+        sanitize_name('Total Raw Score (TR)'), 
+        sanitize_name('Prorated Score (PS)')
+    ]
+    
+    df = pd.DataFrame([input_list], columns=feature_columns)
+    
+    # Step 4: Predict and Decode
+    prediction = model.predict(df)
+    
+    if len(prediction.shape) > 1:
+        encoded_val = np.argmax(prediction[0]) 
+    else:
+        encoded_val = int(prediction[0])
+        
+    return le.inverse_transform([encoded_val])[0]
+
+if __name__ == '__main__':
+    # Test cases using direct raw scores
+    scores_1 = [1, 1, 1, 1, 5, 5, 5, 5] 
+    scores_2 = [5, 5, 5, 5, 1, 1, 1, 1]
+    
+    print("-" * 50)
+    print("ADULT SLEEP DISTURBANCE (PROMIS-8A) PREDICTOR")
+    print("-" * 50)
+    print(f"Scores: {scores_1} | Result: {predict_sleep_severity(scores_1)}")
+    print(f"Scores: {scores_2} | Result: {predict_sleep_severity(scores_2)}")
+    print("-" * 50)
