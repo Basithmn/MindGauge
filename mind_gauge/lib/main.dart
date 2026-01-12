@@ -5,6 +5,8 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http; // Keeping http import for future API calls
 import 'firebase_options.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+
 // --- CONFIGURATION ---
 // Global instance of FirebaseAuth
 final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -33,23 +35,32 @@ class UserProfile {
 }
 
 class FirebaseUserService {
-  // MOCK: This map simulates a Firestore/Realtime Database collection
-  static final Map<String, Map<String, dynamic>> _userDbMock = {};
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  Future<void> saveUserDetails(String userId, String name, int age, String location) async {
-    await Future.delayed(const Duration(milliseconds: 200)); 
-    _userDbMock[userId] = {
-      'name': name,
-      'age': age,
-      'location': location,
-    };
+  Future<void> saveUserDetails(
+    String userId,
+    String name,
+    int age,
+    String location,
+  ) async {
+        await _firestore.collection('users').doc(userId).set(
+          {
+            'name': name,
+            'age': age,
+            'location': location,
+          },
+          SetOptions(merge: true),
+        );
+
   }
 
   Future<Map<String, dynamic>?> getUserDetails(String userId) async {
-    await Future.delayed(const Duration(milliseconds: 200)); 
-    return _userDbMock[userId];
+    final doc =
+        await _firestore.collection('users').doc(userId).get();
+    return doc.exists ? doc.data() : null;
   }
 }
+
 
 class AuthService {
   final FirebaseUserService _userService = FirebaseUserService();
@@ -323,21 +334,22 @@ class MockQuestionnaireService {
     final List<DomainScore> results = [];
 
     domainHighestScores.forEach((domain, highestScore) {
-      final metadata = _domainThresholds[domain];
+      final metadata = thresholdMap[domain];
       if (metadata == null) return;
 
-      bool requiresFollowUp = highestScore >= metadata.thresholdScore;
-
-      if (requiresFollowUp) {
-      results.add(DomainScore(
-        domain,
-        metadata.domainName,
-        highestScore,
-        metadata.thresholdScore,
-        metadata.Level2AdultMeasure,
-      ));
+      if (highestScore >= metadata.thresholdScore) {
+        results.add(
+          DomainScore(
+            domain,
+            metadata.domainName,
+            highestScore,
+            metadata.thresholdScore,
+            metadata.Level2AdultMeasure,
+          ),
+        );
       }
     });
+
 
     results.sort((a, b) => b.highestScore.compareTo(a.highestScore));
 
@@ -523,6 +535,20 @@ static final Map<String, List<Level2AdolescentQuestionnaireData>> _level2Adolesc
       Level2AdolescentQuestionnaireData("9", "SU14", "During the past TWO (2) weeks, about how often did you use Methamphetamine (like speed)? [cite: 119, 128]"),
     ],
   };
+  // ===== PUBLIC GETTERS FOR LEVEL 2 QUESTIONNAIRES =====
+
+  static List<Level2AdultQuestionnaireData> getAdultLevel2Questions(
+    String domainName,
+  ) {
+    return _level2AdultQuestions[domainName] ?? [];
+  }
+
+  static List<Level2AdolescentQuestionnaireData> getAdolescentLevel2Questions(
+    String domainName,
+  ) {
+    return _level2AdolescentQuestions[domainName] ?? [];
+  }
+
 }
 
 // --- JOURNALING/SENTIMENT DATA STRUCTURES ---
@@ -548,75 +574,92 @@ class JournalEntry {
 }
 
 // --- MOCK SERVICE LAYER FOR JOURNALING/SENTIMENT ---
+class FirestoreJournalService {
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
+  CollectionReference<Map<String, dynamic>> _userJournal(String uid) {
+    return _firestore
+        .collection('users')
+        .doc(uid)
+        .collection('journals');
+  }
+
+  Future<void> saveEntry(String uid, JournalEntry entry) async {
+    final key = '${entry.date.year}-${entry.date.month}-${entry.date.day}';
+
+    await _userJournal(uid).doc(key).set({
+      'date': Timestamp.fromDate(entry.date),
+      'text': entry.text,
+      'emoji': entry.sentiment.emoji,
+      'score': entry.sentiment.score,
+      'description': entry.sentiment.description,
+    });
+  }
+
+  Future<List<JournalEntry>> getAllEntries(String uid) async {
+    final snapshot = await _userJournal(uid).get();
+
+    return snapshot.docs.map((doc) {
+      final data = doc.data();
+      return JournalEntry(
+        date: (data['date'] as Timestamp).toDate(),
+        text: data['text'],
+        sentiment: SentimentResult(
+          data['emoji'],
+          (data['score'] as num).toDouble(),
+          data['description'],
+        ),
+      );
+    }).toList();
+  }
+
+  Future<JournalEntry?> getEntry(String uid, DateTime date) async {
+    final key = '${date.year}-${date.month}-${date.day}';
+    final doc = await _userJournal(uid).doc(key).get();
+
+    if (!doc.exists) return null;
+
+    final data = doc.data()!;
+    return JournalEntry(
+      date: (data['date'] as Timestamp).toDate(),
+      text: data['text'],
+      sentiment: SentimentResult(
+        data['emoji'],
+        (data['score'] as num).toDouble(),
+        data['description'],
+      ),
+    );
+  }
+}
 
 class MockSentimentService {
-  SentimentResult analyze(String text) {
-    if (text.isEmpty) {
-      return const SentimentResult("⚪", 0.0, "No entry");
-    }
-    
-    final isNegative = text.toLowerCase().contains('down') || text.toLowerCase().contains('overwhelming') || text.toLowerCase().contains('sad');
-    final isPositive = text.toLowerCase().contains('happy') || text.toLowerCase().contains('great') || text.toLowerCase().contains('fun');
+  final FirestoreJournalService _journalService = FirestoreJournalService();
+  final SentimentResult _empty = const SentimentResult("⚪", 0.0, "No entry");
 
-    if (isNegative) {
+  SentimentResult analyze(String text) {
+    if (text.isEmpty) return _empty;
+
+    final lower = text.toLowerCase();
+    if (lower.contains('down') || lower.contains('sad')) {
       return const SentimentResult("😞", -0.7, "Feeling low");
-    } else if (isPositive) {
+    }
+    if (lower.contains('happy') || lower.contains('great')) {
       return const SentimentResult("😊", 0.8, "Positive mood");
     }
-    
-    final randomScore = Random().nextDouble() * 2 - 1;
-    if (randomScore > 0.6) return const SentimentResult("😄", 0.9, "Very happy");
-    if (randomScore > 0.2) return const SentimentResult("🙂", 0.4, "Content");
-    if (randomScore > -0.2) return const SentimentResult("😐", 0.0, "Neutral");
-    if (randomScore > -0.6) return const SentimentResult("😟", -0.4, "A bit worried");
-    return const SentimentResult("😢", -0.8, "Feeling sad");
+
+    return const SentimentResult("😐", 0.0, "Neutral");
   }
 
-  JournalEntry? getEntry(DateTime date) {
-    final mockEntries = _getMockData();
-    try {
-      return mockEntries.firstWhere(
-          (e) => e.date.isSameDay(date));
-    } catch (e) {
-      return null;
-    }
+  Future<void> saveEntry(String uid, JournalEntry entry) async {
+    await _journalService.saveEntry(uid, entry);
   }
 
-  final List<JournalEntry> _persistedEntries = _getMockData(); 
-
-  void saveEntry(JournalEntry entry) {
-    _persistedEntries.removeWhere((e) => e.date.isSameDay(entry.date));
-    _persistedEntries.add(entry);
-    _persistedEntries.sort((a, b) => b.date.compareTo(a.date));
+  Future<List<JournalEntry>> getAllEntries(String uid) async {
+    return _journalService.getAllEntries(uid);
   }
 
-  List<JournalEntry> getAllEntries() {
-    return List.unmodifiable(_persistedEntries);
-  }
-
-  static List<JournalEntry> _getMockData() {
-    return [
-      JournalEntry(
-          date: DateTime(2025, 10, 2),
-          text: "I felt zero motivation. Stayed inside all day, the hours just melting into one another. The feeling of 'can't start' was overwhelming.",
-          sentiment: const SentimentResult("😞", -0.7, "Feeling low")),
-      JournalEntry(
-          date: DateTime(2025, 10, 3),
-          text: "Had a small win today by cleaning my room. Felt good to accomplish something. Happy to see the sun.",
-          sentiment: const SentimentResult("😊", 0.8, "Positive mood")),
-      JournalEntry(
-          date: DateTime(2025, 10, 4),
-          text: "Very neutral day. Just worked and watched TV. No strong feelings either way.",
-          sentiment: const SentimentResult("😐", 0.0, "Neutral")),
-      JournalEntry(
-          date: DateTime(2025, 10, 7),
-          text: "Anxiety was high today. Worried about an upcoming presentation.",
-          sentiment: const SentimentResult("😟", -0.4, "A bit worried")),
-      JournalEntry(
-          date: DateTime(2025, 10, 13),
-          text: "An important day. Met with a new professional.",
-          sentiment: const SentimentResult("🙂", 0.4, "Content")),
-    ];
+  Future<JournalEntry?> getEntry(String uid, DateTime date) async {
+    return _journalService.getEntry(uid, date);
   }
 }
 
@@ -624,6 +667,9 @@ extension DateOnlyCompare on DateTime {
   bool isSameDay(DateTime other) {
     return year == other.year && month == other.month && day == other.day;
   }
+}
+extension FirstOrNullExtension<T> on Iterable<T> {
+  T? get firstOrNull => isEmpty ? null : first;
 }
 
 // --- CONSTANTS & STYLES ---
@@ -835,16 +881,50 @@ class SplashScreen extends StatefulWidget {
 
 class _SplashScreenState extends State<SplashScreen> {
   @override
-  void initState() {
-    super.initState();
-    Future.delayed(const Duration(seconds: 3), () {
-      if (mounted) {
-        Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => const AuthScreen()),
-        );
-      }
-    });
+void initState() {
+  super.initState();
+  _navigate();
+}
+
+Future<void> _navigate() async {
+  await Future.delayed(const Duration(seconds: 3));
+
+  if (!mounted) return;
+
+  final user = FirebaseAuth.instance.currentUser;
+
+  if (user == null) {
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (_) => const AuthScreen()),
+    );
+    return;
   }
+
+  final doc = await FirebaseFirestore.instance
+      .collection('users')
+      .doc(user.uid)
+      .get();
+
+  if (!doc.exists) {
+    await FirebaseAuth.instance.signOut();
+    Navigator.pushReplacement(
+      context,
+      MaterialPageRoute(builder: (_) => const AuthScreen()),
+    );
+    return;
+  }
+
+  final profile = UserProfile.fromDatabase(doc.data()!, user);
+
+  Navigator.pushReplacement(
+    context,
+    MaterialPageRoute(
+      builder: (_) => MainDashboard(userProfile: profile),
+    ),
+  );
+}
+
 
   @override
   Widget build(BuildContext context) {
@@ -1249,9 +1329,12 @@ class MainDashboard extends StatefulWidget {
 
 class _MainDashboardState extends State<MainDashboard> {
   final MockSentimentService _sentimentService = MockSentimentService();
-  DateTime _focusedDay = DateTime(2025, 10, 13);
-  DateTime _selectedDay = DateTime(2025, 10, 13);
+  DateTime _focusedDay = DateTime.now();
+  DateTime _selectedDay = DateTime.now();
+
   List<JournalEntry> _entries = [];
+  List<DomainScore> _lastDetectedIssues = [];
+
 
   @override
   void initState() {
@@ -1259,35 +1342,47 @@ class _MainDashboardState extends State<MainDashboard> {
     _loadEntries();
   }
 
-  void _loadEntries() {
+  Future<void> _loadEntries() async {
+    final uid = widget.userProfile.userId;
+    final entries = await _sentimentService.getAllEntries(uid);
     setState(() {
-      _entries = _sentimentService.getAllEntries();
+      _entries = entries;
     });
   }
-  
-  void _openJournalingScreen(DateTime date) async {
-    final entry = await Navigator.of(context).push<JournalEntry>(
-      MaterialPageRoute(
-        builder: (context) => JournalingScreen(
-          date: date,
-          initialEntry: _sentimentService.getEntry(date),
-        ),
-      ),
-    );
 
-    if (entry != null) {
-      _sentimentService.saveEntry(entry);
-      _loadEntries();
-      setState(() {
-        _selectedDay = entry.date;
-        _focusedDay = entry.date;
-      });
-    }
+  
+  Future<void> _openJournalingScreen(DateTime date) async {
+  final uid = widget.userProfile.userId;
+  final existingEntry = await _sentimentService.getEntry(uid, date);
+
+  final entry = await Navigator.of(context).push<JournalEntry>(
+    MaterialPageRoute(
+      builder: (context) => JournalingScreen(
+        date: date,
+        initialEntry: existingEntry,
+      ),
+    ),
+  );
+
+  if (entry != null) {
+    await _sentimentService.saveEntry(uid, entry);
+    await _loadEntries();
+
+    setState(() {
+      _selectedDay = entry.date;
+      _focusedDay = entry.date;
+    });
   }
+}
+
 
   @override
   Widget build(BuildContext context) {
-    final JournalEntry? currentEntry = _sentimentService.getEntry(_selectedDay);
+    final JournalEntry? currentEntry = _entries
+        .where((e) => e.date.isSameDay(_selectedDay))
+        .cast<JournalEntry?>()
+        .firstOrNull;
+
 
     return Scaffold(
       appBar: AppBar(
@@ -1295,9 +1390,10 @@ class _MainDashboardState extends State<MainDashboard> {
         backgroundColor: AppColors.background,
         foregroundColor: AppColors.secondary,
         elevation: 0,
-        actions: const [
-          CustomDrawerButton(), 
+        actions: [
+          CustomDrawerButton(detectedIssues: _lastDetectedIssues),
         ],
+
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 20.0),
@@ -1336,10 +1432,14 @@ class _MainDashboardState extends State<MainDashboard> {
               onDaySelected: (selectedDay, focusedDay) {
                 setState(() {
                   _selectedDay = selectedDay;
-                  _focusedDay = focusedDay; 
+                  _focusedDay = focusedDay;
                 });
               },
+              onPreviousMonth: _goToPreviousMonth,
+              onNextMonth: _goToNextMonth,
             ),
+
+            
 
             // --- JOURNAL SNIPPET SECTION ---
             const SizedBox(height: 30),
@@ -1372,11 +1472,21 @@ class _MainDashboardState extends State<MainDashboard> {
             Center(
               child: StyledButton(
                 text: 'Start Symptom Check-In',
-                onPressed: () {
+                onPressed: () async{
                   // Pass age from user profile
-                  Navigator.of(context).push(
-                    MaterialPageRoute(builder: (context) => QuestionnaireScreen(userAge: widget.userProfile.age)),
-                   );
+                  final results = await Navigator.of(context).push<List<DomainScore>>(
+                    MaterialPageRoute(
+                      builder: (context) =>
+                          QuestionnaireScreen(userAge: widget.userProfile.age),
+                    ),
+                  );
+
+                  if (results != null) {
+                    setState(() {
+                      _lastDetectedIssues = results;
+                    });
+                  }
+
                 },
                 color: AppColors.primary,
                 shadowColor: AppColors.primary.withOpacity(0.5),
@@ -1393,6 +1503,28 @@ class _MainDashboardState extends State<MainDashboard> {
       ),
     );
   }
+  void _goToPreviousMonth() {
+    setState(() {
+      _focusedDay = DateTime(
+        _focusedDay.year,
+        _focusedDay.month - 1,
+        1,
+      );
+      _selectedDay = _focusedDay;
+    });
+  }
+
+  void _goToNextMonth() {
+    setState(() {
+      _focusedDay = DateTime(
+        _focusedDay.year,
+        _focusedDay.month + 1,
+        1,
+      );
+      _selectedDay = _focusedDay;
+    });
+  }
+
 }
 
 // 6. QUESTIONNAIRE WIDGET & SCREEN
@@ -1501,11 +1633,19 @@ final List<DomainScore> results = await _service.submitQuestionnaire(_questions,
       _isLoading = false;
     });
 
-    if (mounted) {
-      Navigator.of(context).push(
-        MaterialPageRoute(builder: (context) => AssessmentResultScreen(results: results,userAge: widget.userAge,)),
-      );
-    }
+    if (!mounted) return;
+
+    Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => AssessmentResultScreen(
+          results: results,
+          userAge: widget.userAge,
+        ),
+      ),
+    ).then((_) {
+      Navigator.of(context).pop(results);
+    });
+
   }
 
   @override
@@ -1750,7 +1890,9 @@ class _Level2AdultQuestionnaireScreenState extends State<Level2AdultQuestionnair
   void initState() {
     super.initState();
     // Correctly access the Level 2 questions map using the domainName string key
-    _questions = MockQuestionnaireService._level2AdultQuestions[widget.domainScore.domainName] ?? []; 
+    _questions = MockQuestionnaireService.getAdultLevel2Questions(
+      widget.domainScore.domainName,
+    );
     
     if (_questions.isEmpty) {
       // Show a message if no questions are found.
@@ -1832,7 +1974,9 @@ class _Level2AdolescentQuestionnaireScreenState extends State<Level2AdolescentQu
   void initState() {
     super.initState();
     // Access the Adolescent Level 2 map
-    _questions = MockQuestionnaireService._level2AdolescentQuestions[widget.domainScore.domainName] ?? []; 
+    _questions = MockQuestionnaireService.getAdolescentLevel2Questions(
+      widget.domainScore.domainName,
+    );
     
     if (_questions.isEmpty) {
       WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -1901,7 +2045,9 @@ class SentimentCalendar extends StatelessWidget {
   final DateTime focusedDay;
   final DateTime selectedDay;
   final List<JournalEntry> journalEntries;
-  final Function(DateTime selectedDay, DateTime focusedDay) onDaySelected;
+  final void Function(DateTime selectedDay, DateTime focusedDay) onDaySelected;
+  final VoidCallback onPreviousMonth;
+  final VoidCallback onNextMonth;
 
   const SentimentCalendar({
     super.key,
@@ -1909,19 +2055,33 @@ class SentimentCalendar extends StatelessWidget {
     required this.selectedDay,
     required this.journalEntries,
     required this.onDaySelected,
+    required this.onPreviousMonth,
+    required this.onNextMonth,
   });
+
 
   @override
   Widget build(BuildContext context) {
-    final now = DateTime(2025, 10, 1);
-    final daysInMonth = 31;
-    final firstDayOfWeek = 3; // October 1, 2025 is a Wednesday (1-Sun, 2-Mon, 3-Tue)
+    final now = DateTime.now();
+    final daysInMonth = DateUtils.getDaysInMonth(
+      focusedDay.year,
+      focusedDay.month,
+    );
+
+    final firstDayOfWeek =
+        DateTime(focusedDay.year, focusedDay.month, 1).weekday % 7;
 
     const List<String> weekDays = ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'];
 
     final Map<int, String> emojiMap = {
-      for (var entry in journalEntries.where((e) => e.date.month == focusedDay.month)) entry.date.day: entry.sentiment.emoji
+      for (var entry in journalEntries.where(
+        (e) =>
+          e.date.year == focusedDay.year &&
+          e.date.month == focusedDay.month,
+      ))
+        entry.date.day: entry.sentiment.emoji
     };
+
 
     return Container(
       padding: const EdgeInsets.all(12),
@@ -1937,15 +2097,23 @@ class SentimentCalendar extends StatelessWidget {
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Text(
-                  'October, ${focusedDay.year}',
+                  '${_monthName(focusedDay.month)}, ${focusedDay.year}',
                   style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
                 ),
-                const Row(
+
+                Row(
                   children: [
-                    Icon(Icons.arrow_drop_up, color: AppColors.secondary, size: 24),
-                    Icon(Icons.arrow_drop_down, color: AppColors.secondary, size: 24),
+                    GestureDetector(
+                      onTap: onPreviousMonth,
+                      child: const Icon(Icons.arrow_drop_up, color: AppColors.secondary, size: 28),
+                    ),
+                    GestureDetector(
+                      onTap: onNextMonth,
+                      child: const Icon(Icons.arrow_drop_down, color: AppColors.secondary, size: 28),
+                    ),
                   ],
                 ),
+
               ],
             ),
           ),
@@ -2018,6 +2186,13 @@ class SentimentCalendar extends StatelessWidget {
       ),
     );
   }
+}
+String _monthName(int month) {
+  const months = [
+    'January', 'February', 'March', 'April', 'May', 'June',
+    'July', 'August', 'September', 'October', 'November', 'December'
+  ];
+  return months[month - 1];
 }
 
 class JournalSnippetCard extends StatelessWidget {
@@ -2215,7 +2390,13 @@ class _JournalingScreenState extends State<JournalingScreen> {
 // --- CUSTOM OVERLAY MENU WIDGET ---
 
 class CustomDrawerButton extends StatefulWidget {
-  const CustomDrawerButton({super.key});
+  final List<DomainScore> detectedIssues;
+
+  const CustomDrawerButton({
+    super.key,
+    required this.detectedIssues,
+  });
+
 
   @override
   State<CustomDrawerButton> createState() => _CustomDrawerButtonState();
@@ -2256,8 +2437,13 @@ class _CustomDrawerButtonState extends State<CustomDrawerButton> {
             child: Column( 
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                _DrawerButton(text: 'DETECTED ISSUE', color: AppColors.secondary, onTap: _hideOverlay),
-                _DrawerButton(text: 'RISK TRENDS', color: AppColors.secondary.withOpacity(0.9), onTap: _hideOverlay),
+              _DrawerButton(
+                text: 'DETECTED ISSUE',
+                color: AppColors.secondary,
+                onTap: _hideOverlay,
+                detectedIssues: widget.detectedIssues,
+              ),
+
                 _DrawerButton(text: 'RECOMMENDATIONS', color: AppColors.secondary.withOpacity(0.8), onTap: _hideOverlay),
                 _DrawerButton(text: 'PROFESSIONALS', color: AppColors.secondary.withOpacity(0.7), onTap: _hideOverlay),
               ],
@@ -2270,7 +2456,7 @@ class _CustomDrawerButtonState extends State<CustomDrawerButton> {
     Overlay.of(context).insert(_overlayEntry!);
   }
 
-  void _hideOverlay() {
+  void _hideOverlay() { 
     if (_overlayEntry != null) {
       _overlayEntry!.remove();
       _overlayEntry = null;
@@ -2290,15 +2476,31 @@ class _DrawerButton extends StatelessWidget {
   final String text;
   final Color color;
   final VoidCallback onTap;
+  final List<DomainScore>? detectedIssues;
 
-  const _DrawerButton({required this.text, required this.color, required this.onTap});
+  const _DrawerButton({
+    required this.text,
+    required this.color,
+    required this.onTap,
+    this.detectedIssues,
+  });
 
   @override
   Widget build(BuildContext context) {
     return InkWell(
       onTap: () {
         onTap();
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('$text tapped!')));
+        if (text == 'DETECTED ISSUE') {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => DetectedIssueScreen(
+                detectedIssues: detectedIssues ?? [],
+              ),
+            ),
+          );
+        }
+
+
       },
       child: Container(
         width: 180,
@@ -2315,6 +2517,86 @@ class _DrawerButton extends StatelessWidget {
           ),
         ),
       ),
+    );
+  }
+}   
+class DetectedIssueScreen extends StatelessWidget {
+  final List<DomainScore> detectedIssues;
+
+  const DetectedIssueScreen({
+    super.key,
+    required this.detectedIssues,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Detected Issues'),
+        backgroundColor: AppColors.secondary,
+        foregroundColor: Colors.white,
+      ),
+      body: detectedIssues.isEmpty
+          ? const Center(
+              child: Text(
+                'No clinical issues detected.\nYou are doing well.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 18),
+              ),
+            )
+          : ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: detectedIssues.length,
+              itemBuilder: (context, index) {
+                final issue = detectedIssues[index];
+                final color = issue.highestScore >= 3
+                    ? AppColors.danger
+                    : AppColors.warning;
+
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppColors.cardColor,
+                    borderRadius: BorderRadius.circular(15),
+                    border: Border.all(color: color, width: 2),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        issue.domainName,
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: color,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Severity: ${issue.severity}',
+                        style: const TextStyle(fontSize: 16),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Highest score: ${issue.highestScore}',
+                        style: const TextStyle(fontSize: 14),
+                      ),
+                      if (issue.Level2AdultMeasure != 'None') ...[
+                        const SizedBox(height: 10),
+                        Text(
+                          'Recommended follow-up:\n${issue.Level2AdultMeasure}',
+                          style: const TextStyle(
+                            fontSize: 14,
+                            fontStyle: FontStyle.italic,
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
+                );
+              },
+            ),
     );
   }
 }
