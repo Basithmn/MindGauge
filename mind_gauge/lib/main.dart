@@ -1391,7 +1391,7 @@ class _MainDashboardState extends State<MainDashboard> {
         foregroundColor: AppColors.secondary,
         elevation: 0,
         actions: [
-          CustomDrawerButton(detectedIssues: _lastDetectedIssues),
+          CustomDrawerButton(detectedIssues: _lastDetectedIssues,journalEntries: _entries) ,
         ],
 
       ),
@@ -2391,11 +2391,14 @@ class _JournalingScreenState extends State<JournalingScreen> {
 
 class CustomDrawerButton extends StatefulWidget {
   final List<DomainScore> detectedIssues;
+  final List<JournalEntry> journalEntries;
 
   const CustomDrawerButton({
     super.key,
     required this.detectedIssues,
+    required this.journalEntries,
   });
+
 
 
   @override
@@ -2444,8 +2447,23 @@ class _CustomDrawerButtonState extends State<CustomDrawerButton> {
                 detectedIssues: widget.detectedIssues,
               ),
 
-                _DrawerButton(text: 'RECOMMENDATIONS', color: AppColors.secondary.withOpacity(0.8), onTap: _hideOverlay),
-                _DrawerButton(text: 'PROFESSIONALS', color: AppColors.secondary.withOpacity(0.7), onTap: _hideOverlay),
+                _DrawerButton(
+                  text: 'RECOMMENDATIONS',
+                  color: AppColors.secondary.withOpacity(0.8),
+                  onTap: _hideOverlay,
+                  detectedIssues: widget.detectedIssues,
+                ),
+                _DrawerButton(
+                  text: 'RISK TRENDS',
+                  color: AppColors.secondary.withOpacity(0.9),
+                  onTap: _hideOverlay,
+                  journalEntries: widget.journalEntries,
+                ),
+                _DrawerButton(
+                  text: 'PROFESSIONALS',
+                  color: AppColors.secondary.withOpacity(0.7),
+                  onTap: _hideOverlay,
+                ),  
               ],
             ),
           ),
@@ -2477,13 +2495,16 @@ class _DrawerButton extends StatelessWidget {
   final Color color;
   final VoidCallback onTap;
   final List<DomainScore>? detectedIssues;
+  final List<JournalEntry>? journalEntries;
 
   const _DrawerButton({
     required this.text,
     required this.color,
     required this.onTap,
     this.detectedIssues,
+    this.journalEntries,
   });
+
 
   @override
   Widget build(BuildContext context) {
@@ -2499,8 +2520,31 @@ class _DrawerButton extends StatelessWidget {
             ),
           );
         }
-
-
+        if (text == 'RECOMMENDATIONS') {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => RecommendationsScreen(
+                detectedIssues: detectedIssues ?? [],
+              ),
+            ),
+          );
+        }
+        if (text == 'RISK TRENDS') {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => RiskTrendsScreen(
+                journalEntries: journalEntries ?? [],
+              ),
+            ),
+          );
+        }
+        if (text == 'PROFESSIONALS') {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => const ProfessionalsScreen(),
+            ),
+          );
+        }
       },
       child: Container(
         width: 180,
@@ -2597,6 +2641,439 @@ class DetectedIssueScreen extends StatelessWidget {
                 );
               },
             ),
+    );
+  }
+}
+class RecommendationsScreen extends StatelessWidget {
+  final List<DomainScore> detectedIssues;
+
+  const RecommendationsScreen({
+    super.key,
+    required this.detectedIssues,
+  });
+
+  List<String> _getRecommendations(DomainScore issue) {
+    switch (issue.domainName) {
+      case 'Depression':
+        return [
+          'Maintain a daily routine with consistent sleep and wake times.',
+          'Engage in regular physical activity, even light walking.',
+          'Practice journaling to express thoughts and emotions.',
+          'If symptoms persist, consider speaking with a mental health professional.',
+        ];
+
+      case 'Anxiety':
+        return [
+          'Practice slow breathing or grounding techniques.',
+          'Limit caffeine and stimulants.',
+          'Break tasks into smaller, manageable steps.',
+          'Consider professional support if anxiety interferes with daily life.',
+        ];
+
+      case 'Sleep Problems':
+        return [
+          'Maintain a fixed sleep schedule.',
+          'Avoid screens at least one hour before bedtime.',
+          'Create a quiet, dark, and comfortable sleep environment.',
+        ];
+
+      case 'Anger':
+        return [
+          'Identify common triggers and take breaks when overwhelmed.',
+          'Use relaxation techniques such as deep breathing.',
+          'Engage in physical activity to release tension.',
+        ];
+
+      case 'Substance Use':
+        return [
+          'Reflect on situations that lead to substance use.',
+          'Reduce access to substances where possible.',
+          'Seek professional guidance for support and safe reduction.',
+        ];
+
+      default:
+        return [
+          'Maintain healthy daily habits.',
+          'Monitor symptoms over time.',
+          'Seek professional help if symptoms worsen or persist.',
+        ];
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Recommendations'),
+        backgroundColor: AppColors.secondary,
+        foregroundColor: Colors.white,
+      ),
+      body: detectedIssues.isEmpty
+          ? const Center(
+              child: Text(
+                'No recommendations available.\nComplete a symptom check-in first.',
+                textAlign: TextAlign.center,
+                style: TextStyle(fontSize: 18),
+              ),
+            )
+          : ListView.builder(
+              padding: const EdgeInsets.all(16),
+              itemCount: detectedIssues.length,
+              itemBuilder: (context, index) {
+                final issue = detectedIssues[index];
+                final severityColor =
+                    issue.highestScore >= 3 ? AppColors.danger : AppColors.warning;
+                final recommendations = _getRecommendations(issue);
+
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 16),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                    color: AppColors.cardColor,
+                    borderRadius: BorderRadius.circular(15),
+                    border: Border.all(color: severityColor, width: 2),
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        issue.domainName,
+                        style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: severityColor,
+                        ),
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                        'Severity: ${issue.severity}',
+                        style: const TextStyle(fontSize: 14),
+                      ),
+                      const SizedBox(height: 12),
+                      ...recommendations.map(
+                        (rec) => Padding(
+                          padding: const EdgeInsets.only(bottom: 6),
+                          child: Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              const Text('• ', style: TextStyle(fontSize: 16)),
+                              Expanded(
+                                child: Text(
+                                  rec,
+                                  style: const TextStyle(fontSize: 15),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
+    );
+  }
+}
+class RiskTrendsScreen extends StatelessWidget {
+  final List<JournalEntry> journalEntries;
+
+  const RiskTrendsScreen({
+    super.key,
+    required this.journalEntries,
+  });
+
+  double _averageScore() {
+    if (journalEntries.isEmpty) return 0.0;
+    return journalEntries
+            .map((e) => e.sentiment.score)
+            .reduce((a, b) => a + b) /
+        journalEntries.length;
+  }
+
+  String _severityLabel(double score) {
+    if (score < -0.5) return 'High Risk';
+    if (score < 0) return 'Mild Risk';
+    return 'Minimal Risk';
+  }
+
+  Color _severityColor(double score) {
+    if (score < -0.5) return AppColors.danger;
+    if (score < 0) return AppColors.warning;
+    return AppColors.primary;
+  }
+
+  String _narrative(double score) {
+    if (score < -0.5) {
+      return 'Your recent entries suggest elevated emotional distress. '
+          'This does not mean something is wrong, but it may be helpful to focus '
+          'on coping strategies or professional support.';
+    } else if (score < 0) {
+      return 'Your emotional trend indicates mild distress. '
+          'This is common and often manageable with regular coping practices.';
+    }
+    return 'Your emotional trend is stable. '
+        'You appear to be maintaining a healthy balance recently. Great work!';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final avg = _averageScore();
+    final severity = _severityLabel(avg);
+    final color = _severityColor(avg);
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Risk Trends'),
+        backgroundColor: AppColors.secondary,
+        foregroundColor: Colors.white,
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(20),
+        child: journalEntries.isEmpty
+            ? const Center(
+                child: Text(
+                  'No trend data available.\nStart journaling to see trends.',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 18),
+                ),
+              )
+            : Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // SCORE SUMMARY
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    decoration: BoxDecoration(
+                      color: AppColors.cardColor,
+                      borderRadius: BorderRadius.circular(15),
+                    ),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        const Text(
+                          'Your Emotional Trend',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                            color: AppColors.secondary,
+                          ),
+                        ),
+                        const SizedBox(height: 10),
+                        Text(
+                          severity,
+                          style: TextStyle(
+                            fontSize: 22,
+                            fontWeight: FontWeight.bold,
+                            color: color,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+
+                  const SizedBox(height: 25),
+
+                  // TREND VISUAL (BAR STYLE)
+                  const Text(
+                    'Trend Overview',
+                    style: TextStyle(
+                      fontSize: 18,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.secondary,
+                    ),
+                  ),
+                  const SizedBox(height: 10),
+
+                  Container(
+                    height: 20,
+                    decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(10),
+                      gradient: const LinearGradient(
+                        colors: [
+                          AppColors.danger,
+                          AppColors.warning,
+                          AppColors.primary,
+                        ],
+                      ),
+                    ),
+                    child: Align(
+                      alignment: Alignment(
+                        (avg + 1).clamp(0, 2) - 1,
+                        0,
+                      ),
+                      child: Container(
+                        width: 4,
+                        color: Colors.black,
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 30),
+
+                  // EXPLANATION
+                  Text(
+                    _narrative(avg),
+                    style: const TextStyle(fontSize: 16),
+                  ),
+                ],
+              ),
+      ),
+    );
+  }
+}
+class ProfessionalsScreen extends StatelessWidget {
+  const ProfessionalsScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Professionals'),
+        backgroundColor: AppColors.secondary,
+        foregroundColor: Colors.white,
+      ),
+      body: Padding(
+        padding: const EdgeInsets.all(20),
+        child: ListView(
+          children: [
+            // INTRO
+            Container(
+              padding: const EdgeInsets.all(16),
+              decoration: BoxDecoration(
+                color: AppColors.cardColor,
+                borderRadius: BorderRadius.circular(15),
+              ),
+              child: const Text(
+                'Need to talk to a professional?\n\n'
+                'If your symptoms feel overwhelming or persistent, '
+                'reaching out for professional support can be a helpful step.',
+                style: TextStyle(fontSize: 16),
+              ),
+            ),
+
+            const SizedBox(height: 20),
+
+            // HELPLINES
+            const Text(
+              'Emergency & Helplines',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: AppColors.secondary,
+              ),
+            ),
+            const SizedBox(height: 10),
+
+            _infoTile(
+              title: 'AASRA (India)',
+              subtitle: '24/7 Suicide Prevention Helpline',
+              trailing: '☎ 91-22-27546669',
+            ),
+            _infoTile(
+              title: 'Kiran',
+              subtitle: 'National Mental Health Helpline',
+              trailing: '☎ 1800-599-0019',
+            ),
+
+            const SizedBox(height: 25),
+
+            // LOCAL PROFESSIONALS (STATIC SAMPLE)
+            const Text(
+              'Find a Professional (Sample)',
+              style: TextStyle(
+                fontSize: 18,
+                fontWeight: FontWeight.bold,
+                color: AppColors.secondary,
+              ),
+            ),
+            const SizedBox(height: 10),
+
+            _infoTile(
+              title: 'Dr. N Vipin Chandra Lal',
+              subtitle: 'Clinical Psychologist (M.Phil)\nLeela Hospital, Puthuppally',
+            ),
+            _infoTile(
+              title: 'Dr. Sonia Mary Thomas',
+              subtitle: 'Psychiatrist (MBBS, MD)\nLeela Hospital, Puthuppally',
+            ),
+            _infoTile(
+              title: 'Dr. M K Mathew',
+              subtitle:
+                  'Consultant Psychologist\nMC Road, Athirampuzha',
+            ),
+
+            const SizedBox(height: 30),
+
+            // GET HELP BUTTON
+            ElevatedButton(
+              style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.primary,
+                padding: const EdgeInsets.symmetric(vertical: 14),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(30),
+                ),
+              ),
+              onPressed: () {
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text(
+                      'If this is an emergency, please contact local emergency services.',
+                    ),
+                  ),
+                );
+              },
+              child: const Text(
+                'GET HELP',
+                style: TextStyle(fontSize: 16, color: Colors.white),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  static Widget _infoTile({
+    required String title,
+    required String subtitle,
+    String? trailing,
+  }) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: AppColors.cardColor,
+        borderRadius: BorderRadius.circular(15),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Icon(Icons.person, color: AppColors.secondary),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 15,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(subtitle),
+              ],
+            ),
+          ),
+          if (trailing != null)
+            Text(
+              trailing,
+              style: const TextStyle(fontWeight: FontWeight.bold),
+            ),
+        ],
+      ),
     );
   }
 }
