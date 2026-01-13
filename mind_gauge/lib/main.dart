@@ -34,6 +34,35 @@ class UserProfile {
   }
 }
 
+class Professional {
+  final String id;
+  final String name;
+  final String specialty;
+  final String hospital;
+  final String phone;
+  final String location; // 1. Add this field
+
+  Professional({
+    required this.id,
+    required this.name,
+    required this.specialty,
+    required this.hospital,
+    required this.phone,
+    required this.location, // 2. Update constructor
+  });
+
+  factory Professional.fromFirestore(DocumentSnapshot doc) {
+    Map data = doc.data() as Map<String, dynamic>;
+    return Professional(
+      id: doc.id,
+      name: data['name'] ?? '',
+      specialty: data['specialty'] ?? '',
+      hospital: data['hospital'] ?? '',
+      phone: data['phone'] ?? '',
+      location: data['location'] ?? 'Unknown', // 3. Map it from Firestore
+    );
+  }
+}
 class FirebaseUserService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
@@ -59,6 +88,24 @@ class FirebaseUserService {
         await _firestore.collection('users').doc(userId).get();
     return doc.exists ? doc.data() : null;
   }
+Future<void> saveAssessmentResults(String userId, List<DomainScore> results) async {
+    final assessmentData = {
+      'timestamp': FieldValue.serverTimestamp(),
+      'issues': results.map((s) => {
+        'domainName': s.domainName,
+        'severity': s.severity,
+        'score': s.highestScore,
+        'followUp': s.Level2AdultMeasure,
+      }).toList(),
+    };
+
+    await _firestore
+        .collection('users')
+        .doc(userId)
+        .collection('assessments')
+        .add(assessmentData);
+  }
+
 }
 
 
@@ -1623,30 +1670,27 @@ class _QuestionnaireScreenState extends State<QuestionnaireScreen> {
     _questions = MockQuestionnaireService.getLevel1Questions(widget.userAge);
   }
 
-  void _handleSubmit() async {
-    setState(() {
-      _isLoading = true;
-    });
+ // Inside _QuestionnaireScreenState
+void _handleSubmit() async {
+  setState(() { _isLoading = true; });
 
-final List<DomainScore> results = await _service.submitQuestionnaire(_questions, widget.userAge);
-    setState(() {
-      _isLoading = false;
-    });
-
-    if (!mounted) return;
-
-    Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => AssessmentResultScreen(
-          results: results,
-          userAge: widget.userAge,
-        ),
-      ),
-    ).then((_) {
-      Navigator.of(context).pop(results);
-    });
-
+  final List<DomainScore> results = await _service.submitQuestionnaire(_questions, widget.userAge);
+  
+  // SAVE TO FIRESTORE
+  final user = FirebaseAuth.instance.currentUser;
+  if (user != null) {
+    await FirebaseUserService().saveAssessmentResults(user.uid, results);
   }
+
+  setState(() { _isLoading = false; });
+  if (!mounted) return;
+
+  Navigator.of(context).push(
+    MaterialPageRoute(
+      builder: (_) => AssessmentResultScreen(results: results, userAge: widget.userAge),
+    ),
+  ).then((_) => Navigator.of(context).pop(results));
+}
 
   @override
   Widget build(BuildContext context) {
@@ -2498,6 +2542,7 @@ class _DrawerButton extends StatelessWidget {
   final List<JournalEntry>? journalEntries;
 
   const _DrawerButton({
+    super.key, // Added super.key for best practice
     required this.text,
     required this.color,
     required this.onTap,
@@ -2505,46 +2550,47 @@ class _DrawerButton extends StatelessWidget {
     this.journalEntries,
   });
 
-
   @override
   Widget build(BuildContext context) {
     return InkWell(
-      onTap: () {
-        onTap();
+      // The fix: Add 'async' right here
+      onTap: () async { 
+        onTap(); // This hides the overlay menu
+        
         if (text == 'DETECTED ISSUE') {
           Navigator.of(context).push(
             MaterialPageRoute(
-              builder: (_) => DetectedIssueScreen(
-                detectedIssues: detectedIssues ?? [],
-              ),
+              builder: (_) => const DetectedIssueScreen(),
             ),
           );
         }
+        
         if (text == 'RECOMMENDATIONS') {
           Navigator.of(context).push(
             MaterialPageRoute(
-              builder: (_) => RecommendationsScreen(
-                detectedIssues: detectedIssues ?? [],
-              ),
+              builder: (_) => const RecommendationsScreen(),
             ),
           );
         }
+        
         if (text == 'RISK TRENDS') {
           Navigator.of(context).push(
             MaterialPageRoute(
-              builder: (_) => RiskTrendsScreen(
-                journalEntries: journalEntries ?? [],
-              ),
+              builder: (_) => const RiskTrendsScreen(),
             ),
           );
         }
+
         if (text == 'PROFESSIONALS') {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => const ProfessionalsScreen(),
-            ),
-          );
-        }
+  onTap(); // This closes the overlay menu immediately
+  
+  // Navigate immediately without waiting for Firestore here
+  Navigator.of(context).push(
+    MaterialPageRoute(
+      builder: (_) => const ProfessionalsScreen(),
+    ),
+  );
+}
       },
       child: Container(
         width: 180,
@@ -2557,218 +2603,197 @@ class _DrawerButton extends StatelessWidget {
         child: Center(
           child: Text(
             text,
-            style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14),
+            style: const TextStyle(
+              color: Colors.white, 
+              fontWeight: FontWeight.bold, 
+              fontSize: 14
+            ),
           ),
         ),
       ),
     );
   }
-}   
+}
 class DetectedIssueScreen extends StatelessWidget {
-  final List<DomainScore> detectedIssues;
-
-  const DetectedIssueScreen({
-    super.key,
-    required this.detectedIssues,
-  });
+  const DetectedIssueScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
+
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Detected Issues'),
+        title: const Text('Issue History'),
         backgroundColor: AppColors.secondary,
         foregroundColor: Colors.white,
       ),
-      body: detectedIssues.isEmpty
-          ? const Center(
-              child: Text(
-                'No clinical issues detected.\nYou are doing well.',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 18),
-              ),
-            )
-          : ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: detectedIssues.length,
-              itemBuilder: (context, index) {
-                final issue = detectedIssues[index];
-                final color = issue.highestScore >= 3
-                    ? AppColors.danger
-                    : AppColors.warning;
+      body: StreamBuilder<QuerySnapshot>(
+        // Get assessments ordered by newest first
+        stream: FirebaseFirestore.instance
+            .collection('users')
+            .doc(user?.uid)
+            .collection('assessments')
+            .orderBy('timestamp', descending: true)
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+            return const Center(child: Text("No issues detected yet."));
+          }
 
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: AppColors.cardColor,
-                    borderRadius: BorderRadius.circular(15),
-                    border: Border.all(color: color, width: 2),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        issue.domainName,
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: color,
-                        ),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        'Severity: ${issue.severity}',
-                        style: const TextStyle(fontSize: 16),
-                      ),
-                      const SizedBox(height: 6),
-                      Text(
-                        'Highest score: ${issue.highestScore}',
-                        style: const TextStyle(fontSize: 14),
-                      ),
-                      if (issue.Level2AdultMeasure != 'None') ...[
-                        const SizedBox(height: 10),
-                        Text(
-                          'Recommended follow-up:\n${issue.Level2AdultMeasure}',
-                          style: const TextStyle(
-                            fontSize: 14,
-                            fontStyle: FontStyle.italic,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-                );
-              },
-            ),
+          final latestDoc = snapshot.data!.docs.first;
+          final List issues = latestDoc['issues'] ?? [];
+
+          return ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: issues.length,
+            itemBuilder: (context, index) {
+              final issue = issues[index];
+              final color = (issue['score'] as int) >= 3 ? AppColors.danger : AppColors.warning;
+
+              return Container(
+                margin: const EdgeInsets.only(bottom: 12),
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppColors.cardColor,
+                  borderRadius: BorderRadius.circular(15),
+                  border: Border.all(color: color, width: 2),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(issue['domainName'], 
+                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: color)),
+                    Text('Severity: ${issue['severity']}'),
+                    Text('Recommendation: ${issue['followUp']}'),
+                  ],
+                ),
+              );
+            },
+          );
+        },
+      ),
     );
   }
 }
 class RecommendationsScreen extends StatelessWidget {
-  final List<DomainScore> detectedIssues;
+  const RecommendationsScreen({super.key});
 
-  const RecommendationsScreen({
-    super.key,
-    required this.detectedIssues,
-  });
-
-  List<String> _getRecommendations(DomainScore issue) {
-    switch (issue.domainName) {
+  List<String> _getRecommendations(String domainName) {
+    switch (domainName) {
       case 'Depression':
         return [
           'Maintain a daily routine with consistent sleep and wake times.',
           'Engage in regular physical activity, even light walking.',
           'Practice journaling to express thoughts and emotions.',
-          'If symptoms persist, consider speaking with a mental health professional.',
         ];
-
       case 'Anxiety':
         return [
           'Practice slow breathing or grounding techniques.',
           'Limit caffeine and stimulants.',
           'Break tasks into smaller, manageable steps.',
-          'Consider professional support if anxiety interferes with daily life.',
         ];
-
       case 'Sleep Problems':
         return [
           'Maintain a fixed sleep schedule.',
           'Avoid screens at least one hour before bedtime.',
           'Create a quiet, dark, and comfortable sleep environment.',
         ];
-
-      case 'Anger':
-        return [
-          'Identify common triggers and take breaks when overwhelmed.',
-          'Use relaxation techniques such as deep breathing.',
-          'Engage in physical activity to release tension.',
-        ];
-
-      case 'Substance Use':
-        return [
-          'Reflect on situations that lead to substance use.',
-          'Reduce access to substances where possible.',
-          'Seek professional guidance for support and safe reduction.',
-        ];
-
       default:
         return [
           'Maintain healthy daily habits.',
           'Monitor symptoms over time.',
-          'Seek professional help if symptoms worsen or persist.',
+          'Seek professional help if symptoms persist.',
         ];
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Recommendations'),
         backgroundColor: AppColors.secondary,
         foregroundColor: Colors.white,
       ),
-      body: detectedIssues.isEmpty
-          ? const Center(
-              child: Text(
-                'No recommendations available.\nComplete a symptom check-in first.',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 18),
-              ),
-            )
-          : ListView.builder(
-              padding: const EdgeInsets.all(16),
-              itemCount: detectedIssues.length,
-              itemBuilder: (context, index) {
-                final issue = detectedIssues[index];
-                final severityColor =
-                    issue.highestScore >= 3 ? AppColors.danger : AppColors.warning;
-                final recommendations = _getRecommendations(issue);
+      body: user == null
+          ? const Center(child: Text("Please log in."))
+          : StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('users')
+                  .doc(user.uid)
+                  .collection('assessments')
+                  .orderBy('timestamp', descending: true)
+                  .limit(1)
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                  return const Center(
+                    child: Text(
+                      'No recommendations available.\nComplete a symptom check-in first.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 18),
+                    ),
+                  );
+                }
 
-                return Container(
-                  margin: const EdgeInsets.only(bottom: 16),
+                final latestDoc = snapshot.data!.docs.first;
+                final List issues = latestDoc['issues'] ?? [];
+
+                if (issues.isEmpty) {
+                  return const Center(child: Text("No clinical issues detected. Stay healthy!"));
+                }
+
+                return ListView.builder(
                   padding: const EdgeInsets.all(16),
-                  decoration: BoxDecoration(
-                    color: AppColors.cardColor,
-                    borderRadius: BorderRadius.circular(15),
-                    border: Border.all(color: severityColor, width: 2),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        issue.domainName,
-                        style: TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.bold,
-                          color: severityColor,
-                        ),
+                  itemCount: issues.length,
+                  itemBuilder: (context, index) {
+                    final issue = issues[index];
+                    final String domain = issue['domainName'] ?? 'General';
+                    final recommendations = _getRecommendations(domain);
+
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 16),
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: AppColors.cardColor,
+                        borderRadius: BorderRadius.circular(15),
+                        border: Border.all(color: AppColors.primary.withOpacity(0.5)),
                       ),
-                      const SizedBox(height: 6),
-                      Text(
-                        'Severity: ${issue.severity}',
-                        style: const TextStyle(fontSize: 14),
-                      ),
-                      const SizedBox(height: 12),
-                      ...recommendations.map(
-                        (rec) => Padding(
-                          padding: const EdgeInsets.only(bottom: 6),
-                          child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              const Text('• ', style: TextStyle(fontSize: 16)),
-                              Expanded(
-                                child: Text(
-                                  rec,
-                                  style: const TextStyle(fontSize: 15),
-                                ),
-                              ),
-                            ],
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            "Advice for $domain",
+                            style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.secondary),
                           ),
-                        ),
+                          const SizedBox(height: 10),
+                          ...recommendations
+                              .map((rec) => Padding(
+                                    padding: const EdgeInsets.only(bottom: 5),
+                                    child: Row(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        const Text("• "),
+                                        Expanded(child: Text(rec)),
+                                      ],
+                                    ),
+                                  ))
+                              .toList(),
+                        ],
                       ),
-                    ],
-                  ),
+                    );
+                  },
                 );
               },
             ),
@@ -2776,51 +2801,11 @@ class RecommendationsScreen extends StatelessWidget {
   }
 }
 class RiskTrendsScreen extends StatelessWidget {
-  final List<JournalEntry> journalEntries;
-
-  const RiskTrendsScreen({
-    super.key,
-    required this.journalEntries,
-  });
-
-  double _averageScore() {
-    if (journalEntries.isEmpty) return 0.0;
-    return journalEntries
-            .map((e) => e.sentiment.score)
-            .reduce((a, b) => a + b) /
-        journalEntries.length;
-  }
-
-  String _severityLabel(double score) {
-    if (score < -0.5) return 'High Risk';
-    if (score < 0) return 'Mild Risk';
-    return 'Minimal Risk';
-  }
-
-  Color _severityColor(double score) {
-    if (score < -0.5) return AppColors.danger;
-    if (score < 0) return AppColors.warning;
-    return AppColors.primary;
-  }
-
-  String _narrative(double score) {
-    if (score < -0.5) {
-      return 'Your recent entries suggest elevated emotional distress. '
-          'This does not mean something is wrong, but it may be helpful to focus '
-          'on coping strategies or professional support.';
-    } else if (score < 0) {
-      return 'Your emotional trend indicates mild distress. '
-          'This is common and often manageable with regular coping practices.';
-    }
-    return 'Your emotional trend is stable. '
-        'You appear to be maintaining a healthy balance recently. Great work!';
-  }
+  const RiskTrendsScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final avg = _averageScore();
-    final severity = _severityLabel(avg);
-    final color = _severityColor(avg);
+    final user = FirebaseAuth.instance.currentUser;
 
     return Scaffold(
       appBar: AppBar(
@@ -2828,251 +2813,246 @@ class RiskTrendsScreen extends StatelessWidget {
         backgroundColor: AppColors.secondary,
         foregroundColor: Colors.white,
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(20),
-        child: journalEntries.isEmpty
-            ? const Center(
-                child: Text(
-                  'No trend data available.\nStart journaling to see trends.',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 18),
+      body: StreamBuilder<QuerySnapshot>(
+        // Fetch the last 10 assessments to calculate a trend
+        stream: FirebaseFirestore.instance
+            .collection('users')
+            .doc(user?.uid)
+            .collection('assessments')
+            .orderBy('timestamp', descending: true)
+            .limit(10)
+            .snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+            return const Center(
+              child: Text('No assessment data found.\nComplete a check-in to see trends.'),
+            );
+          }
+
+          final docs = snapshot.data!.docs;
+          
+          // Calculate average risk score from historical data
+          double totalScore = 0;
+          int issueCount = 0;
+
+          for (var doc in docs) {
+            final List issues = doc['issues'] ?? [];
+            for (var issue in issues) {
+              totalScore += (issue['score'] as num).toDouble();
+              issueCount++;
+            }
+          }
+
+          double avgRisk = issueCount > 0 ? totalScore / docs.length : 0;
+
+          return SingleChildScrollView(
+            padding: const EdgeInsets.all(20),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                _buildTrendCard(avgRisk),
+                const SizedBox(height: 30),
+                const Text(
+                  'Historical Context',
+                  style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppColors.secondary),
                 ),
-              )
-            : Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // SCORE SUMMARY
-                  Container(
-                    padding: const EdgeInsets.all(16),
-                    decoration: BoxDecoration(
-                      color: AppColors.cardColor,
-                      borderRadius: BorderRadius.circular(15),
-                    ),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        const Text(
-                          'Your Emotional Trend',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                            color: AppColors.secondary,
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                        Text(
-                          severity,
-                          style: TextStyle(
-                            fontSize: 22,
-                            fontWeight: FontWeight.bold,
-                            color: color,
-                          ),
-                        ),
-                      ],
-                    ),
+                const SizedBox(height: 10),
+                _buildNarrative(avgRisk),
+              ],
+            ),
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildTrendCard(double avg) {
+    String label = avg > 2.5 ? 'High Risk' : (avg > 1.0 ? 'Moderate' : 'Stable');
+    Color color = avg > 2.5 ? AppColors.danger : (avg > 1.0 ? AppColors.warning : AppColors.primary);
+
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.cardColor,
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: color.withOpacity(0.5), width: 2),
+      ),
+      child: Column(
+        children: [
+          Text('Aggregate Severity', style: TextStyle(color: AppColors.secondary)),
+          Text(label, style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: color)),
+          const SizedBox(height: 10),
+          // Visual Progress Bar
+          LinearProgressIndicator(
+            value: (avg / 4).clamp(0.0, 1.0),
+            backgroundColor: Colors.grey[300],
+            color: color,
+            minHeight: 10,
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNarrative(double avg) {
+    String text = avg > 2.5 
+      ? "Trends indicate persistent symptoms meeting clinical thresholds. Prioritize a professional consultation."
+      : "Your symptoms appear to be fluctuating within a manageable range. Continue regular monitoring.";
+      
+    return Text(text, style: const TextStyle(fontSize: 16, height: 1.5));
+  }
+}
+// ... [Keep your Imports and Models exactly as they are] ...
+
+// --- PROFESSIONALS SCREEN ---
+class ProfessionalsScreen extends StatelessWidget {
+  const ProfessionalsScreen({super.key});
+
+  // Helper function to get location from the user profile in Firestore
+  Future<String> _fetchLocation() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user == null) return "All";
+    
+    final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
+    return doc.data()?['location'] ?? "All";
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<String>(
+      future: _fetchLocation(),
+      builder: (context, locationSnapshot) {
+        // Show a loading spinner while we find the user's city
+        if (locationSnapshot.connectionState == ConnectionState.waiting) {
+          return const Scaffold(
+            body: Center(child: CircularProgressIndicator(color: AppColors.primary)),
+          );
+        }
+
+        final userLoc = locationSnapshot.data ?? "All";
+
+        // Once we have the location, we build the actual screen
+        return Scaffold(
+          appBar: AppBar(
+            title: Text(userLoc == "All" ? 'Professionals' : 'Doctors in $userLoc'),
+            backgroundColor: AppColors.secondary,
+            foregroundColor: Colors.white,
+          ),
+          body: StreamBuilder<QuerySnapshot>(
+            stream: FirebaseFirestore.instance
+                .collection('professionals')
+                .where('location', isEqualTo: userLoc)
+                .snapshots(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Center(child: CircularProgressIndicator());
+              }
+
+              final docs = snapshot.data?.docs ?? [];
+
+              // Handle "No Results" for specific location
+              if (docs.isEmpty) {
+                return Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.location_off, size: 60, color: Colors.grey),
+                      const SizedBox(height: 16),
+                      Text("No professionals found in $userLoc"),
+                      const SizedBox(height: 20),
+                      // Fallback button to see everyone
+                      StyledButton(
+                        text: "Show All Doctors",
+                        onPressed: () {
+                           // Navigate to the same screen but bypass location check
+                           Navigator.of(context).pushReplacement(
+                             MaterialPageRoute(builder: (_) => const ProfessionalsScreenAll())
+                           );
+                        },
+                      )
+                    ],
                   ),
+                );
+              }
 
-                  const SizedBox(height: 25),
+              return ListView.builder(
+                padding: const EdgeInsets.all(16),
+                itemCount: docs.length,
+                itemBuilder: (context, index) {
+                  final prof = Professional.fromFirestore(docs[index]);
+                  return _infoTile(
+                    title: prof.name,
+                    subtitle: "${prof.specialty}\n${prof.hospital}",
+                    trailing: prof.phone,
+                  );
+                },
+              );
+            },
+          ),
+        );
+      },
+    );
+  }
 
-                  // TREND VISUAL (BAR STYLE)
-                  const Text(
-                    'Trend Overview',
-                    style: TextStyle(
-                      fontSize: 18,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.secondary,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-
-                  Container(
-                    height: 20,
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(10),
-                      gradient: const LinearGradient(
-                        colors: [
-                          AppColors.danger,
-                          AppColors.warning,
-                          AppColors.primary,
-                        ],
-                      ),
-                    ),
-                    child: Align(
-                      alignment: Alignment(
-                        (avg + 1).clamp(0, 2) - 1,
-                        0,
-                      ),
-                      child: Container(
-                        width: 4,
-                        color: Colors.black,
-                      ),
-                    ),
-                  ),
-
-                  const SizedBox(height: 30),
-
-                  // EXPLANATION
-                  Text(
-                    _narrative(avg),
-                    style: const TextStyle(fontSize: 16),
-                  ),
-                ],
-              ),
+  Widget _infoTile({required String title, required String subtitle, String? trailing}) {
+    return Card(
+      color: AppColors.cardColor,
+      margin: const EdgeInsets.only(bottom: 12),
+      child: ListTile(
+        leading: const CircleAvatar(backgroundColor: AppColors.primary, child: Icon(Icons.person, color: Colors.white)),
+        title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+        subtitle: Text(subtitle),
+        trailing: trailing != null ? const Icon(Icons.phone, color: AppColors.secondary) : null,
       ),
     );
   }
 }
-class ProfessionalsScreen extends StatelessWidget {
-  const ProfessionalsScreen({super.key});
+
+class ProfessionalsScreenAll extends StatelessWidget {
+  const ProfessionalsScreenAll({super.key});
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Professionals'),
+        title: const Text("All Professionals"),
         backgroundColor: AppColors.secondary,
         foregroundColor: Colors.white,
       ),
-      body: Padding(
-        padding: const EdgeInsets.all(20),
-        child: ListView(
-          children: [
-            // INTRO
-            Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
+      body: StreamBuilder<QuerySnapshot>(
+        stream: FirebaseFirestore.instance.collection('professionals').snapshots(),
+        builder: (context, snapshot) {
+          if (snapshot.connectionState == ConnectionState.waiting) {
+            return const Center(child: CircularProgressIndicator());
+          }
+          
+          final docs = snapshot.data?.docs ?? [];
+          
+          return ListView.builder(
+            padding: const EdgeInsets.all(16),
+            itemCount: docs.length,
+            itemBuilder: (context, index) {
+              final prof = Professional.fromFirestore(docs[index]);
+              // Using a consistent style across the app
+              return Card(
                 color: AppColors.cardColor,
-                borderRadius: BorderRadius.circular(15),
-              ),
-              child: const Text(
-                'Need to talk to a professional?\n\n'
-                'If your symptoms feel overwhelming or persistent, '
-                'reaching out for professional support can be a helpful step.',
-                style: TextStyle(fontSize: 16),
-              ),
-            ),
-
-            const SizedBox(height: 20),
-
-            // HELPLINES
-            const Text(
-              'Emergency & Helplines',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: AppColors.secondary,
-              ),
-            ),
-            const SizedBox(height: 10),
-
-            _infoTile(
-              title: 'AASRA (India)',
-              subtitle: '24/7 Suicide Prevention Helpline',
-              trailing: '☎ 91-22-27546669',
-            ),
-            _infoTile(
-              title: 'Kiran',
-              subtitle: 'National Mental Health Helpline',
-              trailing: '☎ 1800-599-0019',
-            ),
-
-            const SizedBox(height: 25),
-
-            // LOCAL PROFESSIONALS (STATIC SAMPLE)
-            const Text(
-              'Find a Professional (Sample)',
-              style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.bold,
-                color: AppColors.secondary,
-              ),
-            ),
-            const SizedBox(height: 10),
-
-            _infoTile(
-              title: 'Dr. N Vipin Chandra Lal',
-              subtitle: 'Clinical Psychologist (M.Phil)\nLeela Hospital, Puthuppally',
-            ),
-            _infoTile(
-              title: 'Dr. Sonia Mary Thomas',
-              subtitle: 'Psychiatrist (MBBS, MD)\nLeela Hospital, Puthuppally',
-            ),
-            _infoTile(
-              title: 'Dr. M K Mathew',
-              subtitle:
-                  'Consultant Psychologist\nMC Road, Athirampuzha',
-            ),
-
-            const SizedBox(height: 30),
-
-            // GET HELP BUTTON
-            ElevatedButton(
-              style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.primary,
-                padding: const EdgeInsets.symmetric(vertical: 14),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(30),
-                ),
-              ),
-              onPressed: () {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text(
-                      'If this is an emergency, please contact local emergency services.',
-                    ),
+                margin: const EdgeInsets.only(bottom: 12),
+                child: ListTile(
+                  leading: const CircleAvatar(
+                    backgroundColor: AppColors.primary,
+                    child: Icon(Icons.person, color: Colors.white),
                   ),
-                );
-              },
-              child: const Text(
-                'GET HELP',
-                style: TextStyle(fontSize: 16, color: Colors.white),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  static Widget _infoTile({
-    required String title,
-    required String subtitle,
-    String? trailing,
-  }) {
-    return Container(
-      margin: const EdgeInsets.only(bottom: 12),
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: AppColors.cardColor,
-        borderRadius: BorderRadius.circular(15),
-      ),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Icon(Icons.person, color: AppColors.secondary),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  title,
-                  style: const TextStyle(
-                    fontWeight: FontWeight.bold,
-                    fontSize: 15,
-                  ),
+                  title: Text(prof.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                  subtitle: Text("${prof.specialty}\nLocation: ${prof.location}"), // Now this works!
+                  isThreeLine: true,
                 ),
-                const SizedBox(height: 4),
-                Text(subtitle),
-              ],
-            ),
-          ),
-          if (trailing != null)
-            Text(
-              trailing,
-              style: const TextStyle(fontWeight: FontWeight.bold),
-            ),
-        ],
+              );
+            },
+          );
+        },
       ),
     );
   }
