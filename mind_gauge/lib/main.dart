@@ -7,6 +7,82 @@ import 'package:http/http.dart' as http; // Keeping http import for future API c
 import 'firebase_options.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+
+import 'package:http/http.dart' as http;
+import 'dart:convert';
+import 'dart:io'; 
+import 'package:flutter/foundation.dart'; // For kIsWeb
+
+Future<String?> getMLDiagnosis(String domainName, List<int> scores, int userAge) async {
+  String baseUrl = 'http://localhost:5000/predict';
+  if (!kIsWeb && Platform.isAndroid) {
+    baseUrl = 'http://10.0.2.2:5000/predict';
+  }
+
+  final url = Uri.parse(baseUrl);
+
+  // 1. Map the Domain to the exact questions the ML models expect.
+  // Based on your logs, we must ensure the 'responses' length matches 
+  // what the model was trained on (e.g., 7, 9, 10, etc.)
+  List<int> slicedScores;
+  String domainKey = domainName.toLowerCase().replaceAll(' ', '_');
+
+  try {
+    switch (domainKey) {
+      case 'depression':
+        slicedScores = scores.sublist(0, 2); // Q1, Q2
+        break;
+      case 'mania':
+        slicedScores = scores.sublist(3, 5); // Q4, Q5
+        break;
+      case 'anxiety':
+        slicedScores = scores.sublist(5, 8); // Q6, Q7, Q8
+        break;
+      case 'somatic_symptoms':
+        // Your log said Somatic expects 10 features
+        slicedScores = scores.take(10).toList(); 
+        domainKey = 'somatic'; // Matching the likely filename
+        break;
+      case 'sleep_problems':
+        domainKey = 'sleep'; // Matching likely filename
+        slicedScores = scores.take(7).toList(); // Matching your '7 features' log
+        break;
+      default:
+        // Fallback: If unknown, we send a safe default slice 
+        // to prevent the LightGBM [Fatal] error.
+        slicedScores = scores.take(7).toList(); 
+    }
+  } catch (e) {
+    slicedScores = scores.take(2).toList();
+  }
+
+  try {
+    final body = jsonEncode({
+      "group": userAge >= 18 ? "adult" : "children",
+      "domain": domainKey,
+      "responses": slicedScores
+    });
+
+    final response = await http.post(
+      url,
+      headers: {"Content-Type": "application/json"},
+      body: body,
+    );
+
+    if (response.statusCode == 200) {
+      final result = jsonDecode(response.body);
+      return result['prediction'];
+    } else {
+      // This will catch the 404s and 500s you saw earlier
+      print("ML Server Error ${response.statusCode}: ${response.body}");
+      return null;
+    }
+  } catch (e) {
+    print("Connection failed: $e");
+    return null;
+  }
+}
+//flask server function ends here
 // --- CONFIGURATION ---
 // Global instance of FirebaseAuth
 final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -93,8 +169,8 @@ Future<void> saveAssessmentResults(String userId, List<DomainScore> results) asy
       'timestamp': FieldValue.serverTimestamp(),
       'issues': results.map((s) => {
         'domainName': s.domainName,
-        'severity': s.severity,
-        'score': s.highestScore,
+        'ml_diagnosis': s.severity, // Uses the ML-dependent getter above
+        'raw_score': s.highestScore,
         'followUp': s.Level2AdultMeasure,
       }).toList(),
     };
@@ -104,7 +180,7 @@ Future<void> saveAssessmentResults(String userId, List<DomainScore> results) asy
         .doc(userId)
         .collection('assessments')
         .add(assessmentData);
-  }
+}
 
 }
 
@@ -226,10 +302,23 @@ class DomainScore {
   final int highestScore;
   final int thresholdScore; 
   final String Level2AdultMeasure;
+  String? mlDiagnosis; // The "source of truth" from your Python server
 
-  DomainScore(this.domain, this.domainName, this.highestScore, this.thresholdScore, this.Level2AdultMeasure);
+  DomainScore(
+    this.domain, 
+    this.domainName, 
+    this.highestScore, 
+    this.thresholdScore, 
+    this.Level2AdultMeasure
+  );
 
+  // CHANGE: The UI now depends on the ML result
   String get severity {
+    if (mlDiagnosis != null && mlDiagnosis!.isNotEmpty) {
+      return mlDiagnosis!; // Return the actual LightGBM prediction
+    }
+    
+    // Local fallback only if the ML server is unreachable
     switch (highestScore) {
       case 4: return "Severe";
       case 3: return "Moderate";
@@ -241,10 +330,9 @@ class DomainScore {
 
   @override
   String toString() {
-    return "${domainName}: ${severity} (Score: $highestScore). Follow-up needed: ${Level2AdultMeasure}";
+    return "$domainName: $severity";
   }
 }
-
 // NEW ENUM: Define types for age-based mapping
 enum QuestionnaireType { adultLevel1, adolescentLevel1 }
 
@@ -1670,13 +1758,28 @@ class _QuestionnaireScreenState extends State<QuestionnaireScreen> {
     _questions = MockQuestionnaireService.getLevel1Questions(widget.userAge);
   }
 
- // Inside _QuestionnaireScreenState
 void _handleSubmit() async {
   setState(() { _isLoading = true; });
 
+  // 1. Get clinical results (to identify which domains to test)
   final List<DomainScore> results = await _service.submitQuestionnaire(_questions, widget.userAge);
+  final List<int> rawScores = _questions.map((q) => q.score.round()).toList();
   
-  // SAVE TO FIRESTORE
+  // 2. DOMINATE WITH ML: Fetch diagnosis for every detected issue
+  for (var res in results) {
+    try {
+      // Calling your Flask server
+      String? liveDiagnosis = await getMLDiagnosis(res.domainName, rawScores, widget.userAge);
+      
+      // Update the object with the LightGBM result
+      res.mlDiagnosis = liveDiagnosis; 
+    } catch (e) {
+      print("ML Error for ${res.domainName}: $e");
+      res.mlDiagnosis = "Requires Clinical Review"; 
+    }
+  }
+
+  // 3. Save the results (now containing ML diagnoses) to Firestore
   final user = FirebaseAuth.instance.currentUser;
   if (user != null) {
     await FirebaseUserService().saveAssessmentResults(user.uid, results);
@@ -1685,13 +1788,13 @@ void _handleSubmit() async {
   setState(() { _isLoading = false; });
   if (!mounted) return;
 
+  // 4. Show the results screen (which now displays ML values)
   Navigator.of(context).push(
     MaterialPageRoute(
       builder: (_) => AssessmentResultScreen(results: results, userAge: widget.userAge),
     ),
-  ).then((_) => Navigator.of(context).pop(results));
+  );
 }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -1840,13 +1943,17 @@ class AssessmentResultScreen extends StatelessWidget {
 }
 
 // 8. WIDGET for Domain Result
+// 8. WIDGET for Domain Result
 class DomainResultCard extends StatelessWidget {
   final DomainScore score;
   final int userAge;
+  
   const DomainResultCard({super.key, required this.score, required this.userAge});
-  Color _getSeverityColor(int score) {
-    if (score >= 3) return AppColors.danger;
-    if (score == 2 || score == 1) return AppColors.warning;
+
+  // FIX: This method must be INSIDE this class
+  Color _getSeverityColor(int scoreValue) {
+    if (scoreValue >= 3) return AppColors.danger;
+    if (scoreValue == 2 || scoreValue == 1) return AppColors.warning;
     return AppColors.primary;
   }
 
@@ -1868,7 +1975,7 @@ class DomainResultCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              Icon(Icons.warning, color: severityColor),
+              Icon(Icons.psychology_alt, color: severityColor),
               const SizedBox(width: 8),
               Text(
                 '${score.domainName} (${score.severity})',
@@ -1880,19 +1987,48 @@ class DomainResultCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 5),
+          const SizedBox(height: 12),
+          
+          // AI ANALYSIS BOX
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.all(12),
+            decoration: BoxDecoration(
+              color: Colors.white.withOpacity(0.8),
+              borderRadius: BorderRadius.circular(10),
+              border: Border.all(color: AppColors.primary.withOpacity(0.2)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text(
+                  "ML-DRIVEN DIAGNOSIS:",
+                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.secondary),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  score.mlDiagnosis ?? "Analyzing patterns...", 
+                  style: const TextStyle(
+                    fontSize: 16, 
+                    fontWeight: FontWeight.w800, 
+                    color: AppColors.text,
+                    fontStyle: FontStyle.italic,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
           Text(
-            '• ${score.domainName}: Highest Score ${score.highestScore} (Threshold >= ${score.thresholdScore})',
-            style: const TextStyle(color: AppColors.text, fontSize: 14),
+            '• Clinical Threshold Check: Highest Score ${score.highestScore} (Target >= ${score.thresholdScore})',
+            style: const TextStyle(color: AppColors.text, fontSize: 13),
           ),
           const SizedBox(height: 10),
           if (isLevel2Available) 
             StyledButton(
               text: 'TAKE ${score.domainName.toUpperCase()} LEVEL 2 MEASURE',
               onPressed: () {
-                // Logic to route based on age
                 final bool isAdolescent = MockQuestionnaireService.mapAgeToQuestionnaire(userAge) == QuestionnaireType.adolescentLevel1;
-                
                 Navigator.of(context).push(
                   MaterialPageRoute(
                     builder: (context) => isAdolescent 
@@ -1904,12 +2040,9 @@ class DomainResultCard extends StatelessWidget {
               color: AppColors.secondary,
             )
           else
-            Padding(
-              padding: const EdgeInsets.symmetric(vertical: 8.0),
-              child: Text(
-                'No dedicated Level 2 measure is available for ${score.domainName}. Consult a clinician.',
-                style: TextStyle(fontStyle: FontStyle.italic, color: AppColors.text.withOpacity(0.7)),
-              ),
+            Text(
+              'No dedicated Level 2 measure is available for ${score.domainName}.',
+              style: TextStyle(fontStyle: FontStyle.italic, color: AppColors.text.withOpacity(0.7)),
             ),
         ],
       ),
