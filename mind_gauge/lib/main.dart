@@ -20,40 +20,57 @@ Future<String?> getMLDiagnosis(String domainName, List<int> scores, int userAge)
   }
 
   final url = Uri.parse(baseUrl);
-
-  // 1. Map the Domain to the exact questions the ML models expect.
-  // Based on your logs, we must ensure the 'responses' length matches 
-  // what the model was trained on (e.g., 7, 9, 10, etc.)
   List<int> slicedScores;
-  String domainKey = domainName.toLowerCase().replaceAll(' ', '_');
+  
+  // Standardize the key to match your Python name_map exactly
+  String domainKey = domainName.toLowerCase().trim();
 
   try {
-    switch (domainKey) {
-      case 'depression':
-        slicedScores = scores.sublist(0, 2); // Q1, Q2
-        break;
-      case 'mania':
-        slicedScores = scores.sublist(3, 5); // Q4, Q5
-        break;
-      case 'anxiety':
-        slicedScores = scores.sublist(5, 8); // Q6, Q7, Q8
-        break;
-      case 'somatic_symptoms':
-        // Your log said Somatic expects 10 features
-        slicedScores = scores.take(10).toList(); 
-        domainKey = 'somatic'; // Matching the likely filename
-        break;
-      case 'sleep_problems':
-        domainKey = 'sleep'; // Matching likely filename
-        slicedScores = scores.take(7).toList(); // Matching your '7 features' log
-        break;
-      default:
-        // Fallback: If unknown, we send a safe default slice 
-        // to prevent the LightGBM [Fatal] error.
-        slicedScores = scores.take(7).toList(); 
-    }
-  } catch (e) {
+    // Update this specific block inside your getMLDiagnosis function
+switch (domainKey) {
+  case 'level1':
+    slicedScores = scores;
+    domainKey = 'level1';
+    break;
+  case 'depression':
+    slicedScores = scores.sublist(0, 2); 
+    domainKey = 'depression';
+    break;
+  case 'anger': // Added case
+    slicedScores = scores.sublist(2, 3); 
+    domainKey = 'anger';
+    break;
+  case 'mania':
+    slicedScores = scores.sublist(3, 5); 
+    domainKey = 'mania';
+    break;
+  case 'anxiety':
+    slicedScores = scores.sublist(5, 8); 
+    domainKey = 'anxiety';
+    break;
+  case 'somatic symptoms': // Matches MockQuestionnaireService name
+    slicedScores = scores.sublist(8, 10); 
+    domainKey = 'somatic'; // Standardizes for Python name_map
+    break;
+  case 'sleep problems': // Matches MockQuestionnaireService name
+    slicedScores = scores.sublist(13, 14); 
+    domainKey = 'sleep'; // Standardizes for Python name_map
+    break;
+  case 'repetitive thoughts and behaviors': // Matches MockQuestionnaireService name
+    slicedScores = scores.sublist(15, 17); 
+    domainKey = 'repetitive_thoughts'; // Standardizes for Python name_map
+    break;
+  case 'substance use':
+    slicedScores = scores.sublist(20, 23); 
+    domainKey = 'substance_use';
+    break;
+  default:
+    // This is where it was failing. If it's not one of the above, 
+    // we should still try to send it to the server using the raw key.
     slicedScores = scores.take(2).toList();
+}
+  } catch (e) {
+    slicedScores = scores.take(2).toList(); // Safety catch
   }
 
   try {
@@ -71,9 +88,8 @@ Future<String?> getMLDiagnosis(String domainName, List<int> scores, int userAge)
 
     if (response.statusCode == 200) {
       final result = jsonDecode(response.body);
-      return result['prediction'];
+      return result['prediction']; // Returns clinical label (e.g., "Moderate")
     } else {
-      // This will catch the 404s and 500s you saw earlier
       print("ML Server Error ${response.statusCode}: ${response.body}");
       return null;
     }
@@ -83,6 +99,45 @@ Future<String?> getMLDiagnosis(String domainName, List<int> scores, int userAge)
   }
 }
 //flask server function ends here
+
+Future<String?> getLevel2MLDiagnosis(String domainName, List<int> scores, int userAge) async {
+  String baseUrl = 'http://localhost:5000/predict';
+  if (!kIsWeb && Platform.isAndroid) {
+    baseUrl = 'http://10.0.2.2:5000/predict';
+  }
+
+  final url = Uri.parse(baseUrl);
+  
+  // Standardize the key for Level 2
+  String domainKey = domainName.toLowerCase().trim();
+
+  try {
+    final body = jsonEncode({
+      "group": userAge >= 18 ? "adult" : "children",
+      "domain": domainKey, 
+      "responses": scores,
+      "level": 2 
+    });
+
+    final response = await http.post(
+      url,
+      headers: {"Content-Type": "application/json"},
+      body: body,
+    );
+
+    if (response.statusCode == 200) {
+      final result = jsonDecode(response.body);
+      return result['prediction']; // Returns clinical label (e.g., "Moderate")
+    } else {
+      print("ML Server Error ${response.statusCode}: ${response.body}");
+      return null;
+    }
+  } catch (e) {
+    print("Connection failed: $e");
+    return null;
+  }
+}
+
 // --- CONFIGURATION ---
 // Global instance of FirebaseAuth
 final FirebaseAuth _auth = FirebaseAuth.instance;
@@ -164,13 +219,14 @@ class FirebaseUserService {
         await _firestore.collection('users').doc(userId).get();
     return doc.exists ? doc.data() : null;
   }
-Future<void> saveAssessmentResults(String userId, List<DomainScore> results) async {
+Future<void> saveAssessmentResults(String userId, List<DomainScore> results, String? overallStatus) async {
     final assessmentData = {
       'timestamp': FieldValue.serverTimestamp(),
+      'globalDiagnosis': overallStatus, // Store the high-level ML result
       'issues': results.map((s) => {
         'domainName': s.domainName,
-        'ml_diagnosis': s.severity, // Uses the ML-dependent getter above
-        'raw_score': s.highestScore,
+        'severity': s.mlDiagnosis, // Store categorical ML result
+        'score': s.highestScore,
         'followUp': s.Level2AdultMeasure,
       }).toList(),
     };
@@ -1761,39 +1817,70 @@ class _QuestionnaireScreenState extends State<QuestionnaireScreen> {
 void _handleSubmit() async {
   setState(() { _isLoading = true; });
 
-  // 1. Get clinical results (to identify which domains to test)
-  final List<DomainScore> results = await _service.submitQuestionnaire(_questions, widget.userAge);
+  // 1. Prepare 13 Domain Scores for the Gatekeeper model
+  final List<int> thirteenDomainScores = [
+    _getHighestScoreForDomain("I"),    // Depression
+    _getHighestScoreForDomain("II"),   // Anger
+    _getHighestScoreForDomain("III"),  // Mania
+    _getHighestScoreForDomain("IV"),   // Anxiety
+    _getHighestScoreForDomain("V"),    // Somatic
+    _getHighestScoreForDomain("VIII"), // Sleep
+    _getHighestScoreForDomain("X"),    // Repetitive Thoughts
+    _getHighestScoreForDomain("XIII"), // Substance Use
+    _getHighestScoreForDomain("VI"),   // Suicidal
+    _getHighestScoreForDomain("VII"),  // Psychosis
+    _getHighestScoreForDomain("IX"),   // Memory
+    _getHighestScoreForDomain("XI"),   // Dissociation
+    _getHighestScoreForDomain("XII"),  // Personality Functioning
+  ];
+
+  // 2. Call Global Level 1 Diagnostic Model
+  String? overallStatus = await getMLDiagnosis("level1", thirteenDomainScores, widget.userAge);
+
+  // 3. Identify domains requiring categorical severity analysis
+  final List<DomainScore> categoricalResults = await _service.submitQuestionnaire(_questions, widget.userAge);
   final List<int> rawScores = _questions.map((q) => q.score.round()).toList();
-  
-  // 2. DOMINATE WITH ML: Fetch diagnosis for every detected issue
-  for (var res in results) {
+
+  // 4. Fetch specific severity labels from ML categorical models
+  for (var res in categoricalResults) {
     try {
-      // Calling your Flask server
-      String? liveDiagnosis = await getMLDiagnosis(res.domainName, rawScores, widget.userAge);
-      
-      // Update the object with the LightGBM result
-      res.mlDiagnosis = liveDiagnosis; 
+      String? categoricalSeverity = await getMLDiagnosis(res.domainName, rawScores, widget.userAge);
+      res.mlDiagnosis = categoricalSeverity ?? "Clinical Review Required"; 
     } catch (e) {
-      print("ML Error for ${res.domainName}: $e");
-      res.mlDiagnosis = "Requires Clinical Review"; 
+      res.mlDiagnosis = "Analysis Unavailable";
     }
   }
 
-  // 3. Save the results (now containing ML diagnoses) to Firestore
+  // 5. Save everything to Firestore (Using the new 3-argument signature)
   final user = FirebaseAuth.instance.currentUser;
   if (user != null) {
-    await FirebaseUserService().saveAssessmentResults(user.uid, results);
+    await FirebaseUserService().saveAssessmentResults(
+      user.uid, 
+      categoricalResults, 
+      overallStatus
+    );
   }
 
   setState(() { _isLoading = false; });
   if (!mounted) return;
 
-  // 4. Show the results screen (which now displays ML values)
+  // 6. Navigate to Results
   Navigator.of(context).push(
     MaterialPageRoute(
-      builder: (_) => AssessmentResultScreen(results: results, userAge: widget.userAge),
+      builder: (_) => AssessmentResultScreen(
+        results: categoricalResults, 
+        userAge: widget.userAge,
+        overallStatus: overallStatus, 
+      ),
     ),
   );
+}
+
+// Helper to find the maximum score for a given domain ID (e.g., "I", "VII")
+int _getHighestScoreForDomain(String domainId) {
+  final domainQuestions = _questions.where((q) => q.domain == domainId);
+  if (domainQuestions.isEmpty) return 0;
+  return domainQuestions.map((q) => q.score.round()).reduce((a, b) => a > b ? a : b);
 }
   @override
   Widget build(BuildContext context) {
@@ -1865,12 +1952,17 @@ void _handleSubmit() async {
   }
 }
 
-
-// 7. ASSESSMENT RESULT SCREEN
 class AssessmentResultScreen extends StatelessWidget {
   final List<DomainScore> results;
   final int userAge;
-  const AssessmentResultScreen({super.key, required this.results,required this.userAge,});
+  final String? overallStatus; // NEW: The global result from Level 1 model
+
+  const AssessmentResultScreen({
+    super.key, 
+    required this.results, 
+    required this.userAge, 
+    this.overallStatus, // Added to constructor
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -1885,72 +1977,88 @@ class AssessmentResultScreen extends StatelessWidget {
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(20.0),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              needsFollowUp 
-                ? '⚠️ Further Assessment Recommended' 
-                : '✅ Level 1 Check-In Complete',
-              style: TextStyle(
-                fontSize: 28,
-                fontWeight: FontWeight.bold,
-                color: needsFollowUp ? AppColors.danger : AppColors.secondary,
-              ),
+  crossAxisAlignment: CrossAxisAlignment.start,
+  children: [
+    // --- OVERALL CLINICAL STATUS HEADER ---
+    Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: AppColors.secondary.withOpacity(0.1),
+        borderRadius: BorderRadius.circular(15),
+        border: Border.all(color: AppColors.secondary, width: 2),
+      ),
+      child: Column(
+        children: [
+          const Text(
+            "OVERALL CLINICAL STATUS",
+            style: TextStyle(fontSize: 12, fontWeight: FontWeight.bold, letterSpacing: 1.2),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            overallStatus ?? "Screening Complete",
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 24, 
+              fontWeight: FontWeight.w900, 
+              color: AppColors.secondary
             ),
-            const SizedBox(height: 10),
-            Text(
-              needsFollowUp 
-                ? 'Your responses indicate symptoms in the areas below that meet the threshold for clinical follow-up using a **Level 2 Cross-Cutting Symptom Measure**.'
-                : 'Your responses did not meet the clinical threshold for requiring further Level 2 assessment at this time.',
-              style: const TextStyle(fontSize: 16, color: AppColors.text),
-            ),
-            
-            const Divider(height: 40, thickness: 1, color: AppColors.secondary),
+          ),
+        ],
+      ),
+    ),
+    const SizedBox(height: 30),
+    Text(
+      needsFollowUp 
+        ? '⚠️ Further Assessment Recommended' 
+        : '✅ Level 1 Check-In Complete',
+      style: TextStyle(
+        fontSize: 22,
+        fontWeight: FontWeight.bold,
+        color: needsFollowUp ? AppColors.danger : AppColors.secondary,
+      ),
+    ),
+    const SizedBox(height: 10),
+    Text(
+      needsFollowUp 
+        ? 'Your responses indicate symptoms in the areas below that meet the threshold for clinical follow-up.'
+        : 'Your responses did not meet the clinical threshold for requiring further assessment at this time.',
+      style: const TextStyle(fontSize: 16, color: AppColors.text),
+    ),
+    const Divider(height: 40, thickness: 1, color: AppColors.secondary),
 
-            if (needsFollowUp) ...[
-              const Text(
-                'Take These Follow-Up Questionnaires:',
-                style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.secondary),
-              ),
-              const SizedBox(height: 15),
-              ...results.map((score) => DomainResultCard(score: score,userAge: userAge,)).toList(),
-            ] else 
-              Center(
-                child: Column(
-                  children: [
-                    const SizedBox(height: 40),
-                    const Icon(Icons.sentiment_satisfied_alt, size: 80, color: AppColors.primary),
-                    const SizedBox(height: 20),
-                    Text(
-                      'All clear! Check in again when clinically indicated.',
-                      style: kSubtitleStyle.copyWith(fontSize: 18),
-                      textAlign: TextAlign.center,
-                    ),
-                    const SizedBox(height: 40),
-                    StyledButton(
-                      text: 'Return to Dashboard',
-                      onPressed: () => Navigator.of(context).popUntil((route) => route.isFirst),
-                      color: AppColors.secondary,
-                    ),
-                  ],
-                ),
-              ),
+    // --- DOMAIN RESULTS OR EMPTY STATE ---
+    if (needsFollowUp) ...[
+      const Text(
+        'Take These Follow-Up Questionnaires:',
+        style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.secondary),
+      ),
+      const SizedBox(height: 15),
+      ...results.map((score) => DomainResultCard(score: score, userAge: userAge)).toList(),
+    ] else 
+      const Center(
+        child: Column(
+          children: [
+            SizedBox(height: 40),
+            Icon(Icons.sentiment_satisfied_alt, size: 80, color: AppColors.primary),
+            SizedBox(height: 20),
+            Text('All clear! Check in again when clinically indicated.'),
           ],
         ),
+      ),
+  ], // Line 1987: Now cleanly closes the list
+)
       ),
     );
   }
 }
 
-// 8. WIDGET for Domain Result
-// 8. WIDGET for Domain Result
 class DomainResultCard extends StatelessWidget {
   final DomainScore score;
   final int userAge;
   
   const DomainResultCard({super.key, required this.score, required this.userAge});
 
-  // FIX: This method must be INSIDE this class
   Color _getSeverityColor(int scoreValue) {
     if (scoreValue >= 3) return AppColors.danger;
     if (scoreValue == 2 || scoreValue == 1) return AppColors.warning;
@@ -1977,19 +2085,23 @@ class DomainResultCard extends StatelessWidget {
             children: [
               Icon(Icons.psychology_alt, color: severityColor),
               const SizedBox(width: 8),
-              Text(
-                '${score.domainName} (${score.severity})',
-                style: TextStyle(
-                  fontSize: 18,
-                  fontWeight: FontWeight.w700,
-                  color: severityColor,
+              // FIX: Wrapped in Expanded to prevent the "RenderFlex overflowed" error
+              Expanded(
+                child: Text(
+                  '${score.domainName} (${score.severity})',
+                  style: TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w700,
+                    color: severityColor,
+                  ),
+                  softWrap: true,
                 ),
               ),
             ],
           ),
           const SizedBox(height: 12),
           
-          // AI ANALYSIS BOX
+          // AI ANALYSIS BOX - Displays Level 2 LGBM Result
           Container(
             width: double.infinity,
             padding: const EdgeInsets.all(12),
@@ -2019,11 +2131,22 @@ class DomainResultCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 12),
-          Text(
-            '• Clinical Threshold Check: Highest Score ${score.highestScore} (Target >= ${score.thresholdScore})',
-            style: const TextStyle(color: AppColors.text, fontSize: 13),
+          
+          // Threshold Check Label
+          Row(
+            children: [
+              const Text('• ', style: TextStyle(fontWeight: FontWeight.bold)),
+              // FIX: Wrapped in Flexible to prevent overflow on small screens
+              Flexible(
+                child: Text(
+                  'Clinical Threshold Check: Highest Score ${score.highestScore} (Target >= ${score.thresholdScore})',
+                  style: const TextStyle(color: AppColors.text, fontSize: 13),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(height: 10),
+          const SizedBox(height: 15),
+          
           if (isLevel2Available) 
             StyledButton(
               text: 'TAKE ${score.domainName.toUpperCase()} LEVEL 2 MEASURE',
@@ -2049,7 +2172,6 @@ class DomainResultCard extends StatelessWidget {
     );
   }
 }
-
 // NEW SCREEN FOR Level2Adult QUESTIONNAIRE:
 class Level2AdultQuestionnaireScreen extends StatefulWidget {
   final DomainScore domainScore;
@@ -2120,11 +2242,48 @@ class _Level2AdultQuestionnaireScreenState extends State<Level2AdultQuestionnair
             Center(
               child: StyledButton(
                 text: 'SUBMIT LEVEL 2 ASSESSMENT',
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Level 2 Submission Mocked for ${widget.domainScore.domainName}.')),
+                onPressed: () async {
+                  // 1. Collect scores
+                  final List<int> scores = _questions.map((q) => q.score.round()).toList();
+                  
+                  // 2. Call ML Service
+                  // Note: We use the adult/child logic inside the function, 
+                  // but this screen is specific to adults, so age is effectively >= 18.
+                  final diagnosis = await getLevel2MLDiagnosis(
+                    widget.domainScore.domainName, 
+                    scores, 
+                    18 // safe to assume adult here or pass real age if needed
                   );
-                  Navigator.of(context).pop();
+
+                  if (!context.mounted) return;
+
+                  // 3. Show Result
+                  showDialog(
+                    context: context,
+                    builder: (ctx) => AlertDialog(
+                      title: Text('${widget.domainScore.domainName} Level 2 Result'),
+                      content: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text("Based on your responses, the severity is:"),
+                          const SizedBox(height: 10),
+                          Text(
+                            diagnosis ?? "Could not analyze",
+                            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.primary),
+                          ),
+                        ],
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () {
+                            Navigator.of(ctx).pop(); // Close dialog
+                            Navigator.of(context).pop(); // Go back to dashboard/results
+                          },
+                          child: const Text("OK"),
+                        )
+                      ],
+                    ),
+                  );
                 },
                 color: AppColors.secondary,
               ),
@@ -2200,11 +2359,48 @@ class _Level2AdolescentQuestionnaireScreenState extends State<Level2AdolescentQu
             Center(
               child: StyledButton(
                 text: 'SUBMIT CHILD LEVEL 2',
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(content: Text('Submission successful for child domain: ${widget.domainScore.domainName}.')),
+                onPressed: () async {
+                  // 1. Collect scores
+                  final List<int> scores = _questions.map((q) => q.score.round()).toList();
+                  
+                  // 2. Call ML Service
+                  // Note: We use the adult/child logic inside the function.
+                  // This screen is specific to adolescents (11-17), so age < 18.
+                  final diagnosis = await getLevel2MLDiagnosis(
+                    widget.domainScore.domainName, 
+                    scores, 
+                    12 // mocked child age, or pass real age if needed
                   );
-                  Navigator.of(context).pop();
+
+                  if (!context.mounted) return;
+
+                  // 3. Show Result
+                  showDialog(
+                    context: context,
+                    builder: (ctx) => AlertDialog(
+                      title: Text('${widget.domainScore.domainName} Level 2 Result'),
+                      content: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Text("Based on your responses, the severity is:"),
+                          const SizedBox(height: 10),
+                          Text(
+                            diagnosis ?? "Could not analyze",
+                            style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppColors.primary),
+                          ),
+                        ],
+                      ),
+                      actions: [
+                        TextButton(
+                          onPressed: () {
+                            Navigator.of(ctx).pop(); // Close dialog
+                            Navigator.of(context).pop(); // Go back to dashboard/results
+                          },
+                          child: const Text("OK"),
+                        )
+                      ],
+                    ),
+                  );
                 },
                 color: AppColors.secondary,
               ),
