@@ -1,136 +1,109 @@
-# predict_adult_level1_multiclass.py
-import sys
-import os
 import joblib
 import pandas as pd
 import numpy as np
+import os
 
-# --- FIX: Path setup remains the same ---
-current_dir = os.path.dirname(os.path.abspath(__file__))
-parent_dir = os.path.join(current_dir, '..')
-sys.path.append(parent_dir)
-# --------------------------------------
+# --- 1. GLOBAL CONFIGURATION ---
+# These names MUST match the columns in your training CSV exactly.
+FEATURE_COLUMNS = [
+    'Depression_Score', 
+    'Anger_Score', 
+    'Mania_Score', 
+    'Anxiety_Score', 
+    'Somatic_Score', 
+    'Sleep_Disturbance_Score', 
+    'Repetitive_Thoughts_Score',
+    'Substance_Use_Score', 
+    'Suicidal_Score', 
+    'Psychosis_Score', 
+    'Memory_Score', 
+    'Dissociation_Score', 
+    'Personality_Functioning_Score'
+]
 
-def predict_diagnosis(domain_scores):
+# Path to the saved model artifacts
+MODEL_PATH = '../../models/adult_model/level1_diagnosis_lgbm_model.pkl'
+ENCODER_PATH = '../../models/adult_model/level1_diagnosis_label_encoder.pkl'
+
+def preprocess_23_to_13(q):
     """
-    Predicts the Multi-Class Clinical Diagnosis (e.g., Severe Psychopathology).
+    Official DSM-5 Mapping: 23 individual question scores -> 13 Clinical Domains.
+    Uses the 'Highest Item Score' logic (max value in each section).
     """
-    # --- 1. Model and Encoder Loading (Uses MULTI-CLASS path) ---
-    MODEL_PATH = '../../models/adult_model/level1_diagnosis_lgbm_model.pkl'
-    ENCODER_PATH = '../../models/adult_model/level1_diagnosis_label_encoder.pkl'
-    
-    try:
-        model = joblib.load(MODEL_PATH) 
-        le = joblib.load(ENCODER_PATH) 
-    except FileNotFoundError:
-        return "Prediction Error: Model files missing. Please run train_adult_level1_multiclass.py first."
+    if len(q) != 23:
+        raise ValueError(f"Expected 23 question scores, but received {len(q)}.")
 
-    FEATURE_COLUMNS = [
-        'Depression_Score', 'Anger_Score', 'Mania_Score', 'Anxiety_Score', 
-        'Somatic_Score', 'Sleep_Disturbance_Score', 'Repetitive_Thoughts_Score',
-        'Substance_Use_Score', 'Suicidal_Score', 'Psychosis_Score','Memory_Score','Dissociation_Score', 'Personality_Functioning_Score'
-    ]
-    
-    if len(domain_scores) != len(FEATURE_COLUMNS):
-        raise ValueError(f"Input must contain exactly {len(FEATURE_COLUMNS)} domain scores.")
-    
-    # --- Predict and Decode ---
-    encoded_prediction = model.predict([domain_scores])[0] 
-    predicted_label = le.inverse_transform([encoded_prediction])[0]
-    
-    return predicted_label
-
-
-def check_level2_referrals_dsm5(domain_scores):
-    """
-    Checks the Level 1 (0-4) domain scores against the official DSM-5 thresholds (1 or 2).
-    """
-    MILD_THRESHOLD = 2 
-    SLIGHT_THRESHOLD = 1
-    
-    THRESHOLDS = {
-        'Depression_Score': MILD_THRESHOLD, 
-        'Anger_Score': MILD_THRESHOLD, 
-        'Mania_Score': MILD_THRESHOLD, 
-        'Anxiety_Score': MILD_THRESHOLD, 
-        'Somatic_Score': MILD_THRESHOLD, 
-        'Sleep_Disturbance_Score': MILD_THRESHOLD, 
-        'Repetitive_Thoughts_Score': MILD_THRESHOLD, 
-        'Substance_Use_Score': SLIGHT_THRESHOLD, 
-        'Suicidal_Score': SLIGHT_THRESHOLD,
-        'Psychosis_Score': SLIGHT_THRESHOLD,
-        'Memory_Score': MILD_THRESHOLD,
-        'Dissociation_Score': MILD_THRESHOLD, 
-        'Personality_Functioning_Score': MILD_THRESHOLD
-    }
-    
-    FEATURE_NAMES = [
-        'Depression_Score', 'Anger_Score', 'Mania_Score', 'Anxiety_Score', 
-        'Somatic_Score', 'Sleep_Disturbance_Score', 'Repetitive_Thoughts_Score',
-        'Substance_Use_Score', 'Suicidal_Score', 'Psychosis_Score','Memory_Score','Dissociation_Score', 'Personality_Functioning_Score'
+    return [
+        max(q[0], q[1]),               # I. Depression (Q1, Q2)
+        q[2],                          # II. Anger (Q3)
+        max(q[3], q[4]),               # III. Mania (Q4, Q5)
+        max(q[5], q[6], q[7]),         # IV. Anxiety (Q6, Q7, Q8)
+        max(q[8], q[9]),               # V. Somatic (Q9, Q10)
+        q[13],                         # VIII. Sleep Disturbance (Q14)
+        max(q[15], q[16]),             # X. Repetitive Thoughts (Q16, Q17)
+        max(q[20], q[21], q[22]),      # XIII. Substance Use (Q21, Q22, Q23)
+        q[10],                         # VI. Suicidal Ideation (Q11)
+        max(q[11], q[12]),             # VII. Psychosis (Q12, Q13)
+        q[14],                         # IX. Memory (Q15)
+        q[17],                         # XI. Dissociation (Q18)
+        max(q[18], q[19])              # XII. Personality Functioning (Q19, Q20)
     ]
 
-    score_map = dict(zip(FEATURE_NAMES, domain_scores))
-    referral_list = {}
+def get_clinical_report(raw_23_scores):
+    """
+    Processes raw inputs, predicts diagnosis, and checks for referral thresholds.
+    """
+    # Verify model files exist
+    if not os.path.exists(MODEL_PATH) or not os.path.exists(ENCODER_PATH):
+        return {"error": "Model artifacts not found. Please run the training script first."}
+
+    # Load Model and Encoder
+    model = joblib.load(MODEL_PATH)
+    le = joblib.load(ENCODER_PATH)
     
-    for domain, threshold in THRESHOLDS.items():
-        if score_map.get(domain, 0) >= threshold:
-            display_name = domain.replace('_Score', '').upper()
-            referral_list[display_name] = f"Score: {score_map[domain]} (Level 1 Threshold: {threshold})"
+    # 1. Map 23 Raw Answers -> 13 Clinical Features
+    domain_scores = preprocess_23_to_13(raw_23_scores)
+    
+    # 2. Predict Diagnosis (Wrapped in DataFrame to include feature names)
+    X_input = pd.DataFrame([domain_scores], columns=FEATURE_COLUMNS)
+    diag_idx = model.predict(X_input)[0]
+    diagnosis = le.inverse_transform([diag_idx])[0]
+    
+    # 3. Level 2 Referral Logic (DSM-5 Thresholds)
+    # Threshold 1 (Slight) for high-risk domains, 2 (Mild) for others.
+    THRESHOLDS = [2, 2, 2, 2, 2, 2, 2, 1, 1, 1, 2, 2, 2]
+    
+    referrals = {}
+    for i, name in enumerate(FEATURE_COLUMNS):
+        if domain_scores[i] >= THRESHOLDS[i]:
+            # Cleanup name for display (e.g., 'Depression_Score' -> 'DEPRESSION')
+            display_name = name.replace('_Score', '').upper()
+            referrals[display_name] = f"Score: {domain_scores[i]} (Level 1 Threshold: {THRESHOLDS[i]})"
             
-    return referral_list
+    return {
+        "diagnosis": diagnosis,
+        "flagged_referrals": referrals
+    }
 
-def run_prediction_scenario(test_scores, scenario_name):
-    """Runs a single scenario and prints the consolidated output."""
+# --- TEST SCENARIO ---
+if __name__ == "__main__":
+    # Example: User bothered 'Slightly' (1) by every single problem.
+    # This usually results in 'No Diagnosis' but flags high-risk areas.
+    sample_answers = [1] * 23 
     
-    diagnosis = predict_diagnosis(test_scores)
-    referrals = check_level2_referrals_dsm5(test_scores)
+    report = get_clinical_report(sample_answers)
     
-    # ... (rest of the print functions remain the same) ...
-
-    print("\n" + "=" * 60)
-    print(f"SCENARIO: {scenario_name}")
-    print("=" * 60)
-    
-    print(f"1. HIGH-LEVEL DIAGNOSIS: {diagnosis}")
-    
-    print("\n2. LEVEL 2 REFERRAL CHECKLIST (Actionable Issues):")
-    
-    flagged_issues = []
-    
-    if referrals:
-        for domain, reason in referrals.items():
-            clean_domain = domain.upper()
-            flagged_issues.append(clean_domain)
-            print(f"    ✅ {clean_domain}: {reason}")
+    if "error" in report:
+        print(report["error"])
     else:
-        print("    ✅ None. All core domains are below the clinical threshold.")
-    
-    # --- CONSOLIDATED SUMMARY BOX ---
-    print("\n" + "-" * 60)
-    print(f"SUMMARY: {diagnosis}")
-    
-    if flagged_issues:
-        issue_list = ", ".join(flagged_issues)
-        print(f"LEVEL 2 CHECK REQUIRED FOR: {issue_list}")
-    else:
-        print("LEVEL 2 CHECK REQUIRED FOR: None")
-    print("-" * 60)
-
-
-if __name__ == '__main__':
-    
-    # --- Example Test Data (13 Scores Input: 0-4 Scale) ---
-    test_scores_high = [4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4, 4] 
-    test_scores_moderate = [2, 1, 0, 3, 2, 1, 0, 1, 0, 1, 0, 2, 3] 
-    test_scores_low = [1, 1, 0, 1, 1, 1, 0, 0, 0, 0, 1, 1, 1]
-    
-    
-    # --- RUN SCENARIOS ---
-    print("=" * 70)
-    print("      ADULT LEVEL 1 DIAGNOSTIC AND LEVEL 2 REFERRAL CHECKER (DSM-5 MULTI-CLASS)")
-    print("=" * 70)
-    
-    run_prediction_scenario(test_scores_high, "SEVERE PROFILE (DSM-5 Multi-Class)")
-    run_prediction_scenario(test_scores_moderate, "MILD/MODERATE PROFILE (DSM-5 Multi-Class)")
-    run_prediction_scenario(test_scores_low, "LOW RISK PROFILE (DSM-5 Multi-Class)")
+        print("\n" + "="*50)
+        print(f"DIAGNOSIS: {report['diagnosis']}")
+        print("="*50)
+        print("\nACTION ITEMS (Level 2 Deep-Dive Required):")
+        
+        if report["flagged_referrals"]:
+            for domain, detail in report["flagged_referrals"].items():
+                print(f" ✅ {domain}: {detail}")
+        else:
+            print(" None. All scores are below the clinical threshold.")
+        print("-" * 50)
