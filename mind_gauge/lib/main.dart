@@ -10,12 +10,12 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'package:http/http.dart' as http;
 import 'dart:convert';
-import 'dart:io'; 
+// import 'dart:io'; // Removed for Web compatibility 
 import 'package:flutter/foundation.dart'; // For kIsWeb
 
 Future<String?> getMLDiagnosis(String domainName, List<int> scores, int userAge) async {
   String baseUrl = 'http://localhost:5000/predict';
-  if (!kIsWeb && Platform.isAndroid) {
+  if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
     baseUrl = 'http://10.0.2.2:5000/predict';
   }
 
@@ -102,7 +102,7 @@ switch (domainKey) {
 
 Future<String?> getLevel2MLDiagnosis(String domainName, List<int> scores, int userAge) async {
   String baseUrl = 'http://localhost:5000/predict';
-  if (!kIsWeb && Platform.isAndroid) {
+  if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
     baseUrl = 'http://10.0.2.2:5000/predict';
   }
 
@@ -134,6 +134,39 @@ Future<String?> getLevel2MLDiagnosis(String domainName, List<int> scores, int us
     }
   } catch (e) {
     print("Connection failed: $e");
+    return null;
+  }
+}
+Future<SentimentResult?> analyzeSentiment(String text) async {
+  String baseUrl = 'http://localhost:5000/analyze_sentiment';
+  if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
+    baseUrl = 'http://10.0.2.2:5000/analyze_sentiment';
+  }
+
+  final url = Uri.parse(baseUrl);
+
+  try {
+    final body = jsonEncode({"text": text});
+
+    final response = await http.post(
+      url,
+      headers: {"Content-Type": "application/json"},
+      body: body,
+    );
+
+    if (response.statusCode == 200) {
+      final result = jsonDecode(response.body);
+      return SentimentResult(
+        result['emoji'],
+        (result['score'] as num).toDouble(),
+        result['description'],
+      );
+    } else {
+      print("Sentiment Server Error ${response.statusCode}: ${response.body}");
+      return null;
+    }
+  } catch (e) {
+    print("Sentiment Connection failed: $e");
     return null;
   }
 }
@@ -2666,7 +2699,7 @@ class _JournalingScreenState extends State<JournalingScreen> {
     }  
   }
 
-  void _saveJournal() {
+  void _saveJournal() async {
     if (_controller.text.trim().isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Journal entry cannot be empty.')),
@@ -2674,14 +2707,33 @@ class _JournalingScreenState extends State<JournalingScreen> {
       return;
     }
 
-    final analyzedSentiment = _sentimentService.analyze(_controller.text.trim());
+    setState(() {
+      _currentSentiment = const SentimentResult("⏳", 0.0, "Analyzing...");
+    });
+
+    final text = _controller.text.trim();
+    
+    // Call the real API
+    SentimentResult? analyzedSentiment = await analyzeSentiment(text);
+
+    // Fallback if API fails
+    analyzedSentiment ??= _sentimentService.analyze(text);
+    
+    // Update the UI with the result before closing (optional, but good UX)
+    setState(() {
+      _currentSentiment = analyzedSentiment!;
+    });
+
+    // Small delay to let user see the result
+    await Future.delayed(const Duration(milliseconds: 800));
 
     final newEntry = JournalEntry(
       date: widget.date.copyWith(hour: 0, minute: 0, second: 0, millisecond: 0, microsecond: 0),
-      text: _controller.text.trim(),
+      text: text,
       sentiment: analyzedSentiment,
     );
 
+    if (!mounted) return;
     Navigator.of(context).pop(newEntry);
   }
   
