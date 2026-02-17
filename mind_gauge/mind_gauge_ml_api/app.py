@@ -102,11 +102,19 @@ def analyze_sentiment():
         blob = TextBlob(text)
         polarity = blob.sentiment.polarity  # -1.0 to 1.0
 
-        # Sentiment Logic
-        if polarity > 0.3:
+        # Refined Sentiment Logic
+        # 1. Keyword Overrides (for strong sentiment words that might be missed)
+        lower_text = text.lower()
+        if any(w in lower_text for w in ['bad', 'sad', 'terrible', 'horrible', 'worst', 'hate', 'awful']):
+            polarity = min(polarity, -0.4) # Force negative
+        elif any(w in lower_text for w in ['great', 'wonderful', 'amazing', 'love', 'best', 'fantastic']):
+            polarity = max(polarity, 0.4) # Force positive
+
+        # 2. Adjusted Thresholds (TextBlob can be conservative)
+        if polarity > 0.1:  # Lowered from 0.3
             emoji = "😊"
             description = "Positive"
-        elif polarity < -0.3:
+        elif polarity < -0.1: # Raised from -0.3
             emoji = "😞"
             description = "Negative"
         else:
@@ -132,7 +140,8 @@ def test_sentiment_endpoint():
     test_cases = [
         "I am feeling absolutely wonderful and happy today!",
         "I feel terrible, sad, and hopeless.",
-        "I went to the store and bought some milk."
+        "I went to the store and bought some milk.",
+        "I had a bad day."
     ]
     
     results = []
