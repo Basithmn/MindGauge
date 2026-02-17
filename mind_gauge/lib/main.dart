@@ -1794,7 +1794,16 @@ class _QuestionnaireItemState extends State<QuestionnaireItem> {
           const SizedBox(height: 10),
           Row(
             children: [
-              const Icon(Icons.remove, color: AppColors.secondary),
+              IconButton(
+                icon: const Icon(Icons.remove, color: AppColors.secondary),
+                onPressed: () {
+                  if (widget.data.score > 0) {
+                    setState(() {
+                      widget.data.score--;
+                    });
+                  }
+                },
+              ),
               Expanded(
                 child: Slider(
                   value: widget.data.score,
@@ -1816,7 +1825,16 @@ class _QuestionnaireItemState extends State<QuestionnaireItem> {
                 style: const TextStyle(fontWeight: FontWeight.bold),
               ),
               const SizedBox(width: 8),
-              const Icon(Icons.add, color: AppColors.secondary),
+              IconButton(
+                icon: const Icon(Icons.add, color: AppColors.secondary),
+                onPressed: () {
+                  if (widget.data.score < 4) {
+                    setState(() {
+                      widget.data.score++;
+                    });
+                  }
+                },
+              ),
             ],
           ),
         ],
