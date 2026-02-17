@@ -84,5 +84,77 @@ def predict():
         print(f"Server Error: {str(e)}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
+@app.route('/analyze_sentiment', methods=['POST'])
+def analyze_sentiment():
+    try:
+        data = request.get_json()
+        text = data.get('text', '')
+        
+        if not text:
+            return jsonify({
+                "status": "success",
+                "emoji": "⚪",
+                "score": 0.0,
+                "description": "No text provided"
+            })
+
+        from textblob import TextBlob
+        blob = TextBlob(text)
+        polarity = blob.sentiment.polarity  # -1.0 to 1.0
+
+        # Sentiment Logic
+        if polarity > 0.3:
+            emoji = "😊"
+            description = "Positive"
+        elif polarity < -0.3:
+            emoji = "😞"
+            description = "Negative"
+        else:
+            emoji = "😐"
+            description = "Neutral"
+
+        return jsonify({
+            "status": "success",
+            "emoji": emoji,
+            "score": polarity,
+            "description": description
+        })
+
+    except Exception as e:
+        print(f"Sentiment Error: {str(e)}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+@app.route('/test', methods=['GET'])
+def test_sentiment_endpoint():
+    """
+    Internal test endpoint to verify sentiment analysis without external scripts.
+    """
+    test_cases = [
+        "I am feeling absolutely wonderful and happy today!",
+        "I feel terrible, sad, and hopeless.",
+        "I went to the store and bought some milk."
+    ]
+    
+    results = []
+    with app.test_client() as client:
+        for text in test_cases:
+            try:
+                response = client.post('/analyze_sentiment', json={"text": text})
+                if response.status_code == 200:
+                    data = response.get_json()
+                    results.append(f"Text: '{text}' -> {data['emoji']} ({data['description']}) [Score: {data['score']}]")
+                else:
+                    results.append(f"Text: '{text}' -> Error {response.status_code}")
+            except Exception as e:
+                results.append(f"Text: '{text}' -> Exception: {str(e)}")
+    
+    return jsonify({
+        "status": "success",
+        "message": "Self-test completed",
+        "results": results
+    })
+
 if __name__ == '__main__':
+    print("Starting MindGauge ML API...")
+    print("Test endpoint available at: http://localhost:5000/test")
     app.run(host='0.0.0.0', port=5000, debug=True)
