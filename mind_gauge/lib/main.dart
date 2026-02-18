@@ -6,8 +6,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:http/http.dart' as http; // Keeping http import for future API calls
 import 'firebase_options.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-
-
+import 'package:camera/camera.dart';
+import 'services/camera_service.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 // import 'dart:io'; // Removed for Web compatibility 
@@ -1755,7 +1755,14 @@ class _MainDashboardState extends State<MainDashboard> {
 class QuestionnaireItem extends StatefulWidget {
   final BaseQuestionnaireData data; 
   final int index;
-  const QuestionnaireItem({super.key, required this.data, required this.index});
+  final VoidCallback? onInteraction; // New callback
+
+  const QuestionnaireItem({
+    super.key, 
+    required this.data, 
+    required this.index,
+    this.onInteraction,
+  });
 
   @override
   State<QuestionnaireItem> createState() => _QuestionnaireItemState();
@@ -1801,6 +1808,7 @@ class _QuestionnaireItemState extends State<QuestionnaireItem> {
                     setState(() {
                       widget.data.score--;
                     });
+                    widget.onInteraction?.call(); // Trigger capture
                   }
                 },
               ),
@@ -1815,6 +1823,7 @@ class _QuestionnaireItemState extends State<QuestionnaireItem> {
                     setState(() {
                       widget.data.score = value;
                     });
+                    widget.onInteraction?.call(); // Trigger capture
                   },
                   activeColor: AppColors.primary,
                   inactiveColor: AppColors.primary.withOpacity(0.3),
@@ -1832,6 +1841,7 @@ class _QuestionnaireItemState extends State<QuestionnaireItem> {
                     setState(() {
                       widget.data.score++;
                     });
+                    widget.onInteraction?.call(); // Trigger capture
                   }
                 },
               ),
@@ -1857,12 +1867,44 @@ class _QuestionnaireScreenState extends State<QuestionnaireScreen> {
   late final List<QuestionnaireData> _questions;
   final MockQuestionnaireService _service = MockQuestionnaireService();
   bool _isLoading = false;
+  
+  // Camera & Emotion Analysis
+  final CameraService _cameraService = CameraService();
+  String _currentEmotion = "";
 
   @override
   void initState() {
     super.initState();
-    // FIX: Get questions based on widget.userAge
     _questions = MockQuestionnaireService.getLevel1Questions(widget.userAge);
+    _initializeCamera();
+  }
+
+  Future<void> _initializeCamera() async {
+    await _cameraService.initialize();
+    if (mounted) setState(() {});
+  }
+
+  @override
+  void dispose() {
+    _cameraService.dispose();
+    super.dispose();
+  }
+
+  Future<void> _captureAndAnalyze() async {
+    if (!_cameraService.isInitialized) return;
+
+    // Optional: Throttle or limit frequency if needed
+    final image = await _cameraService.takePicture();
+    if (image != null) {
+      final result = await _cameraService.analyzeExpression(image);
+      if (result != null && mounted) {
+        setState(() {
+          _currentEmotion = "${result['dominant_emotion']} (${(result['score'] * 100).toStringAsFixed(1)}%)";
+        });
+        print("Detected Emotion: $_currentEmotion");
+        // TODO: Store this emotion data alongside the specific question response if needed
+      }
+    }
   }
 
 void _handleSubmit() async {
@@ -1941,6 +1983,11 @@ int _getHighestScoreForDomain(String domainId) {
         backgroundColor: AppColors.primary,
         foregroundColor: Colors.white,
         actions: [
+          if (_currentEmotion.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(right: 16.0),
+              child: Center(child: Text(_currentEmotion, style: const TextStyle(fontSize: 12))),
+            ),
           IconButton(
             icon: const Icon(Icons.menu),
             onPressed: () {
@@ -1956,6 +2003,14 @@ int _getHighestScoreForDomain(String domainId) {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            // Safe Camera Preview (Small debug view)
+             if (_cameraService.isInitialized && _cameraService.controller != null)
+              Container(
+                height: 1, 
+                width: 1, 
+                child: CameraPreview(_cameraService.controller!), // Hidden but active
+              ),
+
             Text(
               'Questionnaire Version: ${MockQuestionnaireService.mapAgeToQuestionnaire(widget.userAge).toString().split('.').last}',
               style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.secondary),
@@ -1985,7 +2040,11 @@ int _getHighestScoreForDomain(String domainId) {
               ),
             ),
             ..._questions.asMap().entries.map((entry) =>
-              QuestionnaireItem(data: entry.value, index: entry.key + 1)),
+              QuestionnaireItem(
+                data: entry.value, 
+                index: entry.key + 1,
+                onInteraction: _captureAndAnalyze, // Bind callback
+              )),
             const SizedBox(height: 40),
             Center(
               child: _isLoading

@@ -4,3 +4,6 @@ lightgbm
 scikit-learn
 pandas
 textblob
+onnxruntime
+opencv-python-headless
+numpy

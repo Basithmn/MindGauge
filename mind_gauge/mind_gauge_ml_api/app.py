@@ -163,6 +163,143 @@ def test_sentiment_endpoint():
         "results": results
     })
 
+    return jsonify({
+        "status": "success",
+        "message": "Self-test completed",
+        "results": results
+    })
+
+# --- FACIAL EXPRESSION ANALYSIS (ONNX) ---
+import cv2
+import numpy as np
+import base64
+import os
+
+# Try to import onnxruntime
+try:
+    import onnxruntime as ort
+    ort_available = True
+except ImportError:
+    ort_available = False
+    print("Warning: onnxruntime not found. Facial analysis will determine neutral.")
+
+# Emotion labels for FER+ model
+EMOTIONS = ['neutral', 'happiness', 'surprise', 'sadness', 'anger', 'disgust', 'fear', 'contempt']
+
+# Load ONNX model
+model_path = os.path.join(BASE_DIR, "emotion-ferplus-8.onnx")
+ort_session = None
+
+if ort_available and os.path.exists(model_path):
+    try:
+        ort_session = ort.InferenceSession(model_path)
+        print(f"Loaded ONNX model from {model_path}")
+    except Exception as e:
+        print(f"Failed to load ONNX model: {e}")
+else:
+    print(f"ONNX model not found at {model_path} or runtime missing.")
+
+# Load Face Cascade
+face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+
+def preprocess_face(face_img):
+    # Resize to 64x64
+    face_img = cv2.resize(face_img, (64, 64))
+    # Convert to grayscale
+    if len(face_img.shape) == 3:
+        face_img = cv2.cvtColor(face_img, cv2.COLOR_BGR2GRAY)
+    # Reshape to (1, 1, 64, 64) and standardise
+    face_img = face_img.reshape(1, 1, 64, 64).astype(np.float32)
+    return face_img
+
+def softmax(x):
+    """Compute softmax values for each sets of scores in x."""
+    e_x = np.exp(x - np.max(x))
+    return e_x / e_x.sum()
+
+@app.route('/analyze_face', methods=['POST'])
+def analyze_face():
+    try:
+        data = request.get_json()
+        image_data = data.get('image', '') # Expecting base64 string
+
+        if not image_data:
+            return jsonify({"status": "error", "message": "No image provided"}), 400
+
+        # Decode base64 image
+        try:
+            if ',' in image_data:
+                image_data = image_data.split(',')[1]
+            
+            decoded_data = base64.b64decode(image_data)
+            np_data = np.frombuffer(decoded_data, np.uint8)
+            img = cv2.imdecode(np_data, cv2.IMREAD_COLOR)
+        except Exception as e:
+            return jsonify({"status": "error", "message": "Invalid image format"}), 400
+
+        # Detect Faces
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        faces = face_cascade.detectMultiScale(gray, 1.3, 5)
+
+        print(f"Faces detected: {len(faces)}") # DEBUG
+
+        if len(faces) == 0:
+            return jsonify({
+                "status": "success",
+                "dominant_emotion": "neutral",
+                "score": 0.0,
+                "message": "No face detected"
+            })
+
+        # Process the largest face
+        (x, y, w, h) = sorted(faces, key=lambda f: f[2]*f[3], reverse=True)[0]
+        face_roi = img[y:y+h, x:x+w]
+
+        dominant_emotion = "neutral"
+        score = 0.0
+        details = {}
+
+        if ort_session:
+            try:
+                processed_face = preprocess_face(face_roi)
+                input_name = ort_session.get_inputs()[0].name
+                
+                # Run inference
+                ort_outs = ort_session.run(None, {input_name: processed_face})
+                embeddings = ort_outs[0]
+                
+                # Getting probabilities
+                probs = softmax(embeddings[0])
+                print(f"Raw Probabilities: {probs}") # DEBUG
+                
+                # Get dominant emotion
+                idx = np.argmax(probs)
+                dominant_emotion = EMOTIONS[idx]
+                score = float(probs[idx])
+                
+                print(f"Detected: {dominant_emotion} ({score:.2f})") # DEBUG
+
+                details = {emotion: float(prob) for emotion, prob in zip(EMOTIONS, probs)}
+            except Exception as e:
+                print(f"Inference Error: {e}")
+        else:
+            # Fallback if model/session is missing
+             print("ONNX session missing, returning fallback.") # DEBUG
+             dominant_emotion = "neutral (fallback)"
+             score = 1.0
+
+
+        return jsonify({
+            "status": "success",
+            "dominant_emotion": dominant_emotion,
+            "score": score,
+            "details": details
+        })
+
+    except Exception as e:
+        print(f"Face Analysis Error: {str(e)}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
 if __name__ == '__main__':
     print("Starting MindGauge ML API...")
     print("Test endpoint available at: http://localhost:5000/test")
