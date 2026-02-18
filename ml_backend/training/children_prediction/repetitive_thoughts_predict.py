@@ -59,8 +59,8 @@ def predict_repetitive_thoughts_severity(raw_scores):
 
 if __name__ == '__main__':
     # Test cases using direct scores (C-FOCI range is typically 0-4)
-    scores_1 = [4, 4, 3, 4, 3] 
-    scores_2 = [0, 1, 0, 0, 0]
+    scores_1 = [5, 5, 4, 5, 4] 
+    scores_2 = [1, 2, 1, 1, 1]
     
     print("-" * 50)
     print("CHILDREN REPETITIVE THOUGHTS (C-FOCI) PREDICTOR")
