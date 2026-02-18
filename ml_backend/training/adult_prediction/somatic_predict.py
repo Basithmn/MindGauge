@@ -63,9 +63,9 @@ def predict_somatic_severity(raw_symptom_scores):
     return predicted_label
 
 if __name__ == '__main__':
-    # Example Test Cases
-    test_1 = [2, 1, 2, 2, 1, 2, 2, 1, 2, 2, 1, 2, 2, 1, 2] 
-    test_2 = [0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0]
+
+    test_1 = [3, 2, 3, 3, 2, 3, 3, 2, 3, 3, 2, 3, 3, 2, 3]
+    test_2 = [1, 1, 2, 1, 1, 1, 2, 1, 1, 1, 1, 2, 1, 1, 1]
     
     print(f"Scores: {test_1} | Prediction: {predict_somatic_severity(test_1)}")
     print(f"Scores: {test_2} | Prediction: {predict_somatic_severity(test_2)}")

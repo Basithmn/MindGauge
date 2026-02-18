@@ -59,8 +59,8 @@ def predict_irritability_severity(raw_scores):
 
 if __name__ == '__main__':
     # Test cases using direct scores (ARI is typically 0-2 per item)
-    scores_1 = [2, 2, 1, 2, 2, 2] 
-    scores_2 = [0, 0, 1, 0, 0, 0]
+    scores_1 = [3, 3, 2, 3, 3, 3] 
+    scores_2 = [1, 1, 2, 1, 1, 1]
     
     print("-" * 50)
     print("CHILDREN IRRITABILITY (ARI-6) PREDICTOR")
