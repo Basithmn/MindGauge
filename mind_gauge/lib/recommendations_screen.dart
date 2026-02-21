@@ -1,0 +1,127 @@
+import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+
+import 'ui_components.dart';
+class RecommendationsScreen extends StatelessWidget {
+  const RecommendationsScreen({super.key});
+
+  List<String> _getRecommendations(String domainName) {
+    switch (domainName) {
+      case 'Depression':
+        return [
+          'Maintain a daily routine with consistent sleep and wake times.',
+          'Engage in regular physical activity, even light walking.',
+          'Practice journaling to express thoughts and emotions.',
+        ];
+      case 'Anxiety':
+        return [
+          'Practice slow breathing or grounding techniques.',
+          'Limit caffeine and stimulants.',
+          'Break tasks into smaller, manageable steps.',
+        ];
+      case 'Sleep Problems':
+        return [
+          'Maintain a fixed sleep schedule.',
+          'Avoid screens at least one hour before bedtime.',
+          'Create a quiet, dark, and comfortable sleep environment.',
+        ];
+      default:
+        return [
+          'Maintain healthy daily habits.',
+          'Monitor symptoms over time.',
+          'Seek professional help if symptoms persist.',
+        ];
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final user = FirebaseAuth.instance.currentUser;
+
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('Recommendations'),
+        backgroundColor: AppColors.secondary,
+        foregroundColor: Colors.white,
+      ),
+      body: user == null
+          ? const Center(child: Text("Please log in."))
+          : StreamBuilder<QuerySnapshot>(
+              stream: FirebaseFirestore.instance
+                  .collection('users')
+                  .doc(user.uid)
+                  .collection('assessments')
+                  .orderBy('clientTimestamp', descending: true)
+                  .limit(1)
+                  .snapshots(),
+              builder: (context, snapshot) {
+                if (snapshot.connectionState == ConnectionState.waiting) {
+                  return const Center(child: CircularProgressIndicator());
+                }
+                if (!snapshot.hasData || snapshot.data!.docs.isEmpty) {
+                  return const Center(
+                    child: Text(
+                      'No recommendations available.\nComplete a symptom check-in first.',
+                      textAlign: TextAlign.center,
+                      style: TextStyle(fontSize: 18),
+                    ),
+                  );
+                }
+
+                final latestDoc = snapshot.data!.docs.first;
+                final List issues = latestDoc['issues'] ?? [];
+
+                if (issues.isEmpty) {
+                  return const Center(child: Text("No clinical issues detected. Stay healthy!"));
+                }
+
+                return ListView.builder(
+                  padding: const EdgeInsets.all(16),
+                  itemCount: issues.length,
+                  itemBuilder: (context, index) {
+                    final issue = issues[index];
+                    final String domain = issue['domainName'] ?? 'General';
+                    final recommendations = _getRecommendations(domain);
+
+                    return Container(
+                      margin: const EdgeInsets.only(bottom: 16),
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        color: AppColors.cardColor,
+                        borderRadius: BorderRadius.circular(15),
+                        border: Border.all(color: AppColors.primary.withOpacity(0.5)),
+                      ),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            "Advice for $domain",
+                            style: const TextStyle(
+                                fontSize: 18,
+                                fontWeight: FontWeight.bold,
+                                color: AppColors.secondary),
+                          ),
+                          const SizedBox(height: 10),
+                          ...recommendations
+                              .map((rec) => Padding(
+                                    padding: const EdgeInsets.only(bottom: 5),
+                                    child: Row(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                        const Text("• "),
+                                        Expanded(child: Text(rec)),
+                                      ],
+                                    ),
+                                  ))
+                              .toList(),
+                        ],
+                      ),
+                    );
+                  },
+                );
+              },
+            ),
+    );
+  }
+}
