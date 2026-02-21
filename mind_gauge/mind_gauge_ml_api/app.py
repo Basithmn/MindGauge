@@ -430,4 +430,4 @@ def combined_report():
 if __name__ == '__main__':
     print("Starting MindGauge ML API...")
     print("Test endpoint available at: http://localhost:5000/test")
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(host='0.0.0.0', port=5000)
