@@ -346,6 +346,14 @@ class MockQuestionnaireService {
       Level2AdultQuestionnaireData("II", "A4", "In the past seven days, were you grouchy?"),
       Level2AdultQuestionnaireData("II", "A5", "In the past seven days, have you felt annoyed?"),
     ],
+    "Mania": [
+      Level2AdultQuestionnaireData("III", "M1", "I feel happier or more cheerful than usual."),
+      Level2AdultQuestionnaireData("III", "M2", "I feel more self-confident than usual."),
+      Level2AdultQuestionnaireData("III", "M3", "I need less sleep than usual."),
+      Level2AdultQuestionnaireData("III", "M4", "I talk more than usual."),
+      Level2AdultQuestionnaireData("III", "M5", "I have been more active than usual (socially, sexually, at work, home, or school)."),
+
+    ],
     "Anxiety": [
       Level2AdultQuestionnaireData("IV", "AN1", "In the past seven days, have you felt fearful?"),
       Level2AdultQuestionnaireData("IV", "AN2", "In the past seven days, have you felt anxious?"),
@@ -525,7 +533,7 @@ static final Map<String, List<Level2AdolescentQuestionnaireData>> _level2Adolesc
 Future<String?> getMLDiagnosis(String domainName, List<int> scores, int userAge) async {
   String baseUrl = 'http://localhost:5000/predict';
   if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
-    baseUrl = 'http://10.0.2.2:5000/predict';
+    baseUrl = 'http://172.16.7.248:5000/predict';
   }
 
   final url = Uri.parse(baseUrl);
@@ -610,7 +618,7 @@ switch (domainKey) {
 Future<String?> getLevel2MLDiagnosis(String domainName, List<int> scores, int userAge) async {
   String baseUrl = 'http://localhost:5000/predict';
   if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
-    baseUrl = 'http://10.0.2.2:5000/predict';
+    baseUrl = 'http://172.16.7.248:5000/predict';
   }
 
   final url = Uri.parse(baseUrl);
@@ -647,7 +655,7 @@ Future<String?> getLevel2MLDiagnosis(String domainName, List<int> scores, int us
 Future<SentimentResult?> analyzeSentiment(String text) async {
   String baseUrl = 'http://localhost:5000/analyze_sentiment';
   if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
-    baseUrl = 'http://10.0.2.2:5000/analyze_sentiment';
+    baseUrl = 'http://172.16.7.248:5000/analyze_sentiment';
   }
 
   final url = Uri.parse(baseUrl);

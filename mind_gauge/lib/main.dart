@@ -12,7 +12,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 // --- CONFIGURATION ---
 // Global instance of FirebaseAuth
 final FirebaseAuth _auth = FirebaseAuth.instance;
-// const String _apiBaseUrl = 'http://10.0.2.2:5000'; // Define API URL if needed later
+// const String _apiBaseUrl = 'http://172.16.7.248:5000'; // Define API URL if needed later
 
 // --- SERVICE LAYER AND DATA STRUCTURES ---
 Future<void> main() async {
