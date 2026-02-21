@@ -1881,6 +1881,9 @@ class _QuestionnaireScreenState extends State<QuestionnaireScreen> {
 
   Future<void> _initializeCamera() async {
     await _cameraService.initialize();
+    if (_cameraService.isInitialized) {
+      await _cameraService.startVideoRecording();
+    }
     if (mounted) setState(() {});
   }
 
@@ -1910,7 +1913,14 @@ class _QuestionnaireScreenState extends State<QuestionnaireScreen> {
 void _handleSubmit() async {
   setState(() { _isLoading = true; });
 
-  // 1. Prepare 13 Domain Scores for the Gatekeeper model
+  // 1. Stop Video Recording and Analyze
+  Map<String, dynamic>? visualSentiment;
+  XFile? videoFile = await _cameraService.stopVideoRecording();
+  if (videoFile != null) {
+    visualSentiment = await _cameraService.analyzeVideo(videoFile);
+  }
+
+  // 2. Prepare 13 Domain Scores for the Gatekeeper model
   final List<int> thirteenDomainScores = [
     _getHighestScoreForDomain("I"),    // Depression
     _getHighestScoreForDomain("II"),   // Anger
@@ -1927,24 +1937,36 @@ void _handleSubmit() async {
     _getHighestScoreForDomain("XII"),  // Personality Functioning
   ];
 
-  // 2. Call Global Level 1 Diagnostic Model
+  // 3. Call Global Level 1 Diagnostic Model
   String? overallStatus = await getMLDiagnosis("level1", thirteenDomainScores, widget.userAge);
 
-  // 3. Identify domains requiring categorical severity analysis
+  // 4. Identify domains requiring categorical severity analysis
   final List<DomainScore> categoricalResults = await _service.submitQuestionnaire(_questions, widget.userAge);
   final List<int> rawScores = _questions.map((q) => q.score.round()).toList();
 
-  // 4. Fetch specific severity labels from ML categorical models
+  // 5. Fetch specific severity labels from ML categorical models
+  final List<Map<String, dynamic>> serializedResults = [];
   for (var res in categoricalResults) {
     try {
       String? categoricalSeverity = await getMLDiagnosis(res.domainName, rawScores, widget.userAge);
       res.mlDiagnosis = categoricalSeverity ?? "Clinical Review Required"; 
+      serializedResults.add({
+        'domainName': res.domainName,
+        'highestScore': res.highestScore,
+        'mlDiagnosis': res.mlDiagnosis,
+      });
     } catch (e) {
       res.mlDiagnosis = "Analysis Unavailable";
     }
   }
 
-  // 5. Save everything to Firestore (Using the new 3-argument signature)
+  // 6. Get Combined Holistic Report
+  Map<String, dynamic>? combinedReport;
+  if (visualSentiment != null) {
+    combinedReport = await _cameraService.getCombinedReport(serializedResults, visualSentiment);
+  }
+
+  // 7. Save everything to Firestore
   final user = FirebaseAuth.instance.currentUser;
   if (user != null) {
     await FirebaseUserService().saveAssessmentResults(
@@ -1957,13 +1979,14 @@ void _handleSubmit() async {
   setState(() { _isLoading = false; });
   if (!mounted) return;
 
-  // 6. Navigate to Results
+  // 8. Navigate to Results
   Navigator.of(context).push(
     MaterialPageRoute(
       builder: (_) => AssessmentResultScreen(
         results: categoricalResults, 
         userAge: widget.userAge,
         overallStatus: overallStatus, 
+        combinedReport: combinedReport,
       ),
     ),
   );
@@ -2065,13 +2088,15 @@ int _getHighestScoreForDomain(String domainId) {
 class AssessmentResultScreen extends StatelessWidget {
   final List<DomainScore> results;
   final int userAge;
-  final String? overallStatus; // NEW: The global result from Level 1 model
+  final String? overallStatus; 
+  final Map<String, dynamic>? combinedReport; 
 
   const AssessmentResultScreen({
     super.key, 
     required this.results, 
     required this.userAge, 
-    this.overallStatus, // Added to constructor
+    this.overallStatus,
+    this.combinedReport,
   });
 
   @override
@@ -2117,8 +2142,54 @@ class AssessmentResultScreen extends StatelessWidget {
         ],
       ),
     ),
-    const SizedBox(height: 30),
-    Text(
+          const SizedBox(height: 30),
+          
+          // --- COMBINED HOLISTIC INSIGHT ---
+          if (combinedReport != null) ...[
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(20),
+              decoration: BoxDecoration(
+                color: AppColors.primary.withOpacity(0.1),
+                borderRadius: BorderRadius.circular(15),
+                border: Border.all(color: AppColors.primary, width: 2),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                   Row(
+                    children: [
+                      const Icon(Icons.auto_awesome, color: AppColors.primary),
+                      const SizedBox(width: 8),
+                      const Text(
+                        "HOLISTIC AI INSIGHT",
+                        style: TextStyle(fontSize: 14, fontWeight: FontWeight.bold, color: AppColors.primary),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    combinedReport?['holistic_insight'] ?? "Analyzing combined patterns...",
+                    style: const TextStyle(fontSize: 16, color: AppColors.text, fontStyle: FontStyle.italic),
+                  ),
+                  const Divider(height: 30),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text("Visual Sentiment:", style: TextStyle(fontWeight: FontWeight.bold)),
+                      Text(
+                        "${combinedReport?['visual_summary']?['dominant']?.toUpperCase() ?? 'N/A'}",
+                        style: const TextStyle(color: AppColors.secondary, fontWeight: FontWeight.bold),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 30),
+          ],
+
+          Text(
       needsFollowUp 
         ? '⚠️ Further Assessment Recommended' 
         : '✅ Level 1 Check-In Complete',
