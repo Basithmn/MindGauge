@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import 'ui_components.dart';
+
 class DetectedIssueScreen extends StatelessWidget {
   const DetectedIssueScreen({super.key});
 
@@ -40,7 +41,9 @@ class DetectedIssueScreen extends StatelessWidget {
             itemCount: issues.length,
             itemBuilder: (context, index) {
               final issue = issues[index];
-              final color = (issue['score'] as int) >= 3 ? AppColors.danger : AppColors.warning;
+              final color = (issue['score'] as int) >= 4
+                  ? AppColors.danger
+                  : AppColors.warning;
 
               return Container(
                 margin: const EdgeInsets.only(bottom: 12),
@@ -53,8 +56,14 @@ class DetectedIssueScreen extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(issue['domainName'], 
-                      style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: color)),
+                    Text(
+                      issue['domainName'],
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: color,
+                      ),
+                    ),
                     Text('Severity: ${issue['severity']}'),
                     Text('Recommendation: ${issue['followUp']}'),
                   ],

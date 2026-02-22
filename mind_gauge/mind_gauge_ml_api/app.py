@@ -59,7 +59,7 @@ def predict():
         if len(responses) > expected_features:
             responses = responses[:expected_features]
         elif len(responses) < expected_features:
-            responses = responses + [0] * (expected_features - len(responses))
+            responses = responses + [1] * (expected_features - len(responses))
 
         # 4. INFERENCE
         input_df = pd.DataFrame([responses])
@@ -388,7 +388,7 @@ def combined_report():
         v_sentiment = data.get('visual_sentiment', {}) # Output from /analyze_video
 
         dominant_visual = v_sentiment.get('dominant_emotion', 'neutral')
-        visual_profile = v_sentiment.get('visual_sentiment_profile', {})
+        visual_profile = v_sentiment.get('visual_sentiment_profile') or v_sentiment.get('details') or {}
 
         # Basic Correlation Logic
         insights = []
@@ -418,7 +418,8 @@ def combined_report():
             "holistic_insight": " ".join(insights),
             "visual_summary": {
                 "dominant": dominant_visual,
-                "confidence": v_sentiment.get('overall_score', 0)
+                "confidence": v_sentiment.get('overall_score', 0),
+                "profile": visual_profile
             },
             "risk_level": "High" if high_risk_domains else "Moderate" if q_results else "Low"
         })
