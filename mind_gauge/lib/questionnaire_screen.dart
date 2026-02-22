@@ -98,22 +98,32 @@ void _handleSubmit() async {
   final List<DomainScore> categoricalResults = await _service.submitQuestionnaire(_questions, widget.userAge);
   final List<int> rawScores = _questions.map((q) => q.score.round()).toList();
 
-  // 5. Fetch specific severity labels from ML categorical models
+// 5. Fetch specific severity labels from ML categorical models (PARALLEL & FIXED)
   final List<Map<String, dynamic>> serializedResults = [];
-  for (var res in categoricalResults) {
+
+  // Create all tasks at once
+  final diagnosisFutures = categoricalResults.map((res) async {
     try {
-      String? categoricalSeverity = await getMLDiagnosis(res.domainName, rawScores, widget.userAge);
+      // Pass the rawScores; getMLDiagnosis handles the sublist/slicing
+      String? categoricalSeverity = await getMLDiagnosis(res.domainName, rawScores, widget.userAge)
+          .timeout(const Duration(seconds: 10)); // Prevent infinite hang
+      
       res.mlDiagnosis = categoricalSeverity ?? "Clinical Review Required"; 
+
+      // Dart's list.add is safe here because of the single-threaded event loop
       serializedResults.add({
         'domainName': res.domainName,
         'highestScore': res.highestScore,
         'mlDiagnosis': res.mlDiagnosis,
       });
     } catch (e) {
+      print("Error diagnosing ${res.domainName}: $e");
       res.mlDiagnosis = "Analysis Unavailable";
     }
-  }
+  }).toList();
 
+  // Wait for all requests to finish at the same time
+  await Future.wait(diagnosisFutures);
   // 6. Get Combined Holistic Report
   Map<String, dynamic>? combinedReport;
   if (visualSentiment != null) {
