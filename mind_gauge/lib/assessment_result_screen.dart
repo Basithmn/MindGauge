@@ -111,12 +111,12 @@ class AssessmentResultScreen extends StatelessWidget {
 
           Text(
       needsFollowUp 
-        ? '⚠️ Further Assessment Recommended' 
+        ? ' Further Assessment Recommended' 
         : '✅ Level 1 Check-In Complete',
       style: TextStyle(
         fontSize: 22,
         fontWeight: FontWeight.bold,
-        color: needsFollowUp ? AppColors.danger : AppColors.secondary,
+        color: needsFollowUp ? const Color.fromARGB(255, 0, 122, 122) : AppColors.secondary,
       ),
     ),
     const SizedBox(height: 10),
@@ -160,8 +160,8 @@ class DomainResultCard extends StatelessWidget {
   const DomainResultCard({super.key, required this.score, required this.userAge});
 
   Color _getSeverityColor(int scoreValue) {
-    if (scoreValue >= 3) return AppColors.danger;
-    if (scoreValue == 2 || scoreValue == 1) return AppColors.warning;
+    if (scoreValue >= 3) return const Color.fromARGB(255, 4, 124, 167);
+    if (scoreValue == 2 || scoreValue == 1) return const Color.fromARGB(255, 3, 136, 120);
     return AppColors.primary;
   }
 

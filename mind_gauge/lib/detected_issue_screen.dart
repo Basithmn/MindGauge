@@ -40,7 +40,7 @@ class DetectedIssueScreen extends StatelessWidget {
             itemCount: issues.length,
             itemBuilder: (context, index) {
               final issue = issues[index];
-              final color = (issue['score'] as int) >= 3 ? AppColors.danger : AppColors.warning;
+              final color = (issue['score'] as int) >= 3 ? const Color.fromARGB(255, 0, 195, 255) : const Color.fromARGB(255, 0, 200, 183);
 
               return Container(
                 margin: const EdgeInsets.only(bottom: 12),

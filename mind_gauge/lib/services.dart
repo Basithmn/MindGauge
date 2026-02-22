@@ -601,7 +601,7 @@ switch (domainKey) {
       url,
       headers: {"Content-Type": "application/json"},
       body: body,
-    );
+    ).timeout(const Duration(seconds: 8));
 
     if (response.statusCode == 200) {
       final result = jsonDecode(response.body);
