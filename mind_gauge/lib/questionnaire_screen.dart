@@ -72,70 +72,6 @@ class _QuestionnaireScreenState extends State<QuestionnaireScreen> {
       _isLoading = true;
     });
 
-<<<<<<< HEAD
-  // 1. Stop Video Recording and Analyze
-  Map<String, dynamic>? visualSentiment;
-  XFile? videoFile = await _cameraService.stopVideoRecording();
-  if (videoFile != null) {
-    visualSentiment = await _cameraService.analyzeVideo(videoFile);
-  }
-
-  // 2. Prepare 13 Domain Scores for the Gatekeeper model
-  final List<int> thirteenDomainScores = [
-    _getHighestScoreForDomain("I"),    // Depression
-    _getHighestScoreForDomain("II"),   // Anger
-    _getHighestScoreForDomain("III"),  // Mania
-    _getHighestScoreForDomain("IV"),   // Anxiety
-    _getHighestScoreForDomain("V"),    // Somatic
-    _getHighestScoreForDomain("VIII"), // Sleep
-    _getHighestScoreForDomain("X"),    // Repetitive Thoughts
-    _getHighestScoreForDomain("XIII"), // Substance Use
-    _getHighestScoreForDomain("VI"),   // Suicidal
-    _getHighestScoreForDomain("VII"),  // Psychosis
-    _getHighestScoreForDomain("IX"),   // Memory
-    _getHighestScoreForDomain("XI"),   // Dissociation
-    _getHighestScoreForDomain("XII"),  // Personality Functioning
-  ];
-
-  // 3. Call Global Level 1 Diagnostic Model
-  String? overallStatus = await getMLDiagnosis("level1", thirteenDomainScores, widget.userAge);
-
-  // 4. Identify domains requiring categorical severity analysis
-  final List<DomainScore> categoricalResults = await _service.submitQuestionnaire(_questions, widget.userAge);
-  final List<int> rawScores = _questions.map((q) => q.score.round()).toList();
-
-// 5. Fetch specific severity labels from ML categorical models (PARALLEL & FIXED)
-  final List<Map<String, dynamic>> serializedResults = [];
-
-  // Create all tasks at once
-  final diagnosisFutures = categoricalResults.map((res) async {
-    try {
-      // Pass the rawScores; getMLDiagnosis handles the sublist/slicing
-      String? categoricalSeverity = await getMLDiagnosis(res.domainName, rawScores, widget.userAge)
-          .timeout(const Duration(seconds: 10)); // Prevent infinite hang
-      
-      res.mlDiagnosis = categoricalSeverity ?? "Clinical Review Required"; 
-
-      // Dart's list.add is safe here because of the single-threaded event loop
-      serializedResults.add({
-        'domainName': res.domainName,
-        'highestScore': res.highestScore,
-        'mlDiagnosis': res.mlDiagnosis,
-      });
-    } catch (e) {
-      print("Error diagnosing ${res.domainName}: $e");
-      res.mlDiagnosis = "Analysis Unavailable";
-    }
-  }).toList();
-
-  // Wait for all requests to finish at the same time
-  await Future.wait(diagnosisFutures);
-  // 6. Get Combined Holistic Report
-  Map<String, dynamic>? combinedReport;
-  if (visualSentiment != null) {
-    combinedReport = await _cameraService.getCombinedReport(serializedResults, visualSentiment);
-  }
-=======
     // 1. Stop Video Recording and Analyze
     Map<String, dynamic>? visualSentiment;
     XFile? videoFile = await _cameraService.stopVideoRecording();
@@ -159,7 +95,6 @@ class _QuestionnaireScreenState extends State<QuestionnaireScreen> {
       _getHighestScoreForDomain("XI"), // Dissociation
       _getHighestScoreForDomain("XII"), // Personality Functioning
     ];
->>>>>>> cd345286ea473e6fce5700d578c9588cad2fb43c
 
     // 3. Call Global Level 1 Diagnostic Model
     String? overallStatus = await getMLDiagnosis(

@@ -150,7 +150,7 @@ class _MainDashboardState extends State<MainDashboard> {
                 Row(
                   children: [
                     const Text(
-                      'Journal',
+                      'Thought Flow',
                       style: TextStyle(
                         fontSize: 20,
                         fontWeight: FontWeight.bold,

@@ -78,7 +78,7 @@ class _JournalingScreenState extends State<JournalingScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text('Journal for ${widget.date.day}/${widget.date.month}/${widget.date.year}'),
+        title: Text('Thought Flow for ${widget.date.day}/${widget.date.month}/${widget.date.year}'),
         backgroundColor: AppColors.secondary,
         foregroundColor: Colors.white,
       ),
@@ -131,7 +131,7 @@ class _JournalingScreenState extends State<JournalingScreen> {
             const SizedBox(height: 20),
             Center(
               child: StyledButton(
-                text: 'Save Journal Entry',
+                text: 'Save Thought Flow',
                 onPressed: _saveJournal,
                 color: AppColors.primary,
               ),
