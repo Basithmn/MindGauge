@@ -11,6 +11,7 @@ import 'detected_issue_screen.dart';
 import 'recommendations_screen.dart';
 import 'risk_trends_screen.dart';
 import 'professionals_screen.dart';
+
 class MainDashboard extends StatefulWidget {
   final UserProfile userProfile;
   const MainDashboard({super.key, required this.userProfile});
@@ -27,7 +28,6 @@ class _MainDashboardState extends State<MainDashboard> {
   List<JournalEntry> _entries = [];
   List<DomainScore> _lastDetectedIssues = [];
 
-
   @override
   void initState() {
     super.initState();
@@ -42,31 +42,27 @@ class _MainDashboardState extends State<MainDashboard> {
     });
   }
 
-  
   Future<void> _openJournalingScreen(DateTime date) async {
-  final uid = widget.userProfile.userId;
-  final existingEntry = await _sentimentService.getEntry(uid, date);
+    final uid = widget.userProfile.userId;
+    final existingEntry = await _sentimentService.getEntry(uid, date);
 
-  final entry = await Navigator.of(context).push<JournalEntry>(
-    MaterialPageRoute(
-      builder: (context) => JournalingScreen(
-        date: date,
-        initialEntry: existingEntry,
+    final entry = await Navigator.of(context).push<JournalEntry>(
+      MaterialPageRoute(
+        builder: (context) =>
+            JournalingScreen(date: date, initialEntry: existingEntry),
       ),
-    ),
-  );
+    );
 
-  if (entry != null) {
-    await _sentimentService.saveEntry(uid, entry);
-    await _loadEntries();
+    if (entry != null) {
+      await _sentimentService.saveEntry(uid, entry);
+      await _loadEntries();
 
-    setState(() {
-      _selectedDay = entry.date;
-      _focusedDay = entry.date;
-    });
+      setState(() {
+        _selectedDay = entry.date;
+        _focusedDay = entry.date;
+      });
+    }
   }
-}
-
 
   @override
   Widget build(BuildContext context) {
@@ -75,7 +71,6 @@ class _MainDashboardState extends State<MainDashboard> {
         .cast<JournalEntry?>()
         .firstOrNull;
 
-
     return Scaffold(
       appBar: AppBar(
         title: const Text('MINDGAUGE'),
@@ -83,9 +78,11 @@ class _MainDashboardState extends State<MainDashboard> {
         foregroundColor: AppColors.secondary,
         elevation: 0,
         actions: [
-          CustomDrawerButton(detectedIssues: _lastDetectedIssues,journalEntries: _entries) ,
+          CustomDrawerButton(
+            detectedIssues: _lastDetectedIssues,
+            journalEntries: _entries,
+          ),
         ],
-
       ),
       body: SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 20.0),
@@ -104,17 +101,31 @@ class _MainDashboardState extends State<MainDashboard> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text('Hello, ${widget.userProfile.name}!', style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.secondary)),
+                  Text(
+                    'Hello, ${widget.userProfile.name}!',
+                    style: const TextStyle(
+                      fontSize: 20,
+                      fontWeight: FontWeight.bold,
+                      color: AppColors.secondary,
+                    ),
+                  ),
                   const SizedBox(height: 5),
-                  Text('Age: ${widget.userProfile.age} | Location: ${widget.userProfile.location}', style: const TextStyle(fontSize: 14, color: AppColors.text)),
+                  Text(
+                    'Age: ${widget.userProfile.age} | Location: ${widget.userProfile.location}',
+                    style: const TextStyle(fontSize: 14, color: AppColors.text),
+                  ),
                 ],
               ),
             ),
-            
+
             // --- CALENDAR SECTION ---
             const Text(
               'CALENDAR',
-              style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.secondary),
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                color: AppColors.secondary,
+              ),
             ),
             const SizedBox(height: 10),
             SentimentCalendar(
@@ -131,8 +142,6 @@ class _MainDashboardState extends State<MainDashboard> {
               onNextMonth: _goToNextMonth,
             ),
 
-            
-
             // --- JOURNAL SNIPPET SECTION ---
             const SizedBox(height: 30),
             Row(
@@ -142,10 +151,17 @@ class _MainDashboardState extends State<MainDashboard> {
                   children: [
                     const Text(
                       'Journal',
-                      style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppColors.secondary),
+                      style: TextStyle(
+                        fontSize: 20,
+                        fontWeight: FontWeight.bold,
+                        color: AppColors.secondary,
+                      ),
                     ),
                     const SizedBox(width: 8),
-                    Icon(Icons.calendar_month, color: AppColors.secondary.withOpacity(0.7)), 
+                    Icon(
+                      Icons.calendar_month,
+                      color: AppColors.secondary.withOpacity(0.7),
+                    ),
                   ],
                 ),
                 Text(
@@ -164,21 +180,22 @@ class _MainDashboardState extends State<MainDashboard> {
             Center(
               child: StyledButton(
                 text: 'Start Symptom Check-In',
-                onPressed: () async{
+                onPressed: () async {
                   // Pass age from user profile
-                  final results = await Navigator.of(context).push<List<DomainScore>>(
-                    MaterialPageRoute(
-                      builder: (context) =>
-                          QuestionnaireScreen(userAge: widget.userProfile.age),
-                    ),
-                  );
+                  final results = await Navigator.of(context)
+                      .push<List<DomainScore>>(
+                        MaterialPageRoute(
+                          builder: (context) => QuestionnaireScreen(
+                            userProfile: widget.userProfile,
+                          ),
+                        ),
+                      );
 
                   if (results != null) {
                     setState(() {
                       _lastDetectedIssues = results;
                     });
                   }
-
                 },
                 color: AppColors.primary,
                 shadowColor: AppColors.primary.withOpacity(0.5),
@@ -195,29 +212,22 @@ class _MainDashboardState extends State<MainDashboard> {
       ),
     );
   }
+
   void _goToPreviousMonth() {
     setState(() {
-      _focusedDay = DateTime(
-        _focusedDay.year,
-        _focusedDay.month - 1,
-        1,
-      );
+      _focusedDay = DateTime(_focusedDay.year, _focusedDay.month - 1, 1);
       _selectedDay = _focusedDay;
     });
   }
 
   void _goToNextMonth() {
     setState(() {
-      _focusedDay = DateTime(
-        _focusedDay.year,
-        _focusedDay.month + 1,
-        1,
-      );
+      _focusedDay = DateTime(_focusedDay.year, _focusedDay.month + 1, 1);
       _selectedDay = _focusedDay;
     });
   }
-
 }
+
 class SentimentCalendar extends StatelessWidget {
   final DateTime focusedDay;
   final DateTime selectedDay;
@@ -236,7 +246,6 @@ class SentimentCalendar extends StatelessWidget {
     required this.onNextMonth,
   });
 
-
   @override
   Widget build(BuildContext context) {
     final now = DateTime.now();
@@ -253,12 +262,10 @@ class SentimentCalendar extends StatelessWidget {
     final Map<int, String> emojiMap = {
       for (var entry in journalEntries.where(
         (e) =>
-          e.date.year == focusedDay.year &&
-          e.date.month == focusedDay.month,
+            e.date.year == focusedDay.year && e.date.month == focusedDay.month,
       ))
-        entry.date.day: entry.sentiment.emoji
+        entry.date.day: entry.sentiment.emoji,
     };
-
 
     return Container(
       padding: const EdgeInsets.all(12),
@@ -275,39 +282,57 @@ class SentimentCalendar extends StatelessWidget {
               children: [
                 Text(
                   '${_monthName(focusedDay.month)}, ${focusedDay.year}',
-                  style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                  ),
                 ),
 
                 Row(
                   children: [
                     GestureDetector(
                       onTap: onPreviousMonth,
-                      child: const Icon(Icons.arrow_drop_up, color: AppColors.secondary, size: 28),
+                      child: const Icon(
+                        Icons.arrow_drop_up,
+                        color: AppColors.secondary,
+                        size: 28,
+                      ),
                     ),
                     GestureDetector(
                       onTap: onNextMonth,
-                      child: const Icon(Icons.arrow_drop_down, color: AppColors.secondary, size: 28),
+                      child: const Icon(
+                        Icons.arrow_drop_down,
+                        color: AppColors.secondary,
+                        size: 28,
+                      ),
                     ),
                   ],
                 ),
-
               ],
             ),
           ),
           const Divider(thickness: 1, height: 10),
-          
+
           // Weekday Headers
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: weekDays
-                .map((day) => Expanded(
-                        child: Center(
-                          child: Text(day, style: const TextStyle(fontWeight: FontWeight.bold, color: AppColors.secondary)),
+                .map(
+                  (day) => Expanded(
+                    child: Center(
+                      child: Text(
+                        day,
+                        style: const TextStyle(
+                          fontWeight: FontWeight.bold,
+                          color: AppColors.secondary,
                         ),
-                      ))
+                      ),
+                    ),
+                  ),
+                )
                 .toList(),
           ),
-          
+
           // Days Grid
           GridView.builder(
             shrinkWrap: true,
@@ -324,10 +349,14 @@ class SentimentCalendar extends StatelessWidget {
               }
 
               final dayOfMonth = index - firstDayOfWeek + 1;
-              final date = DateTime(focusedDay.year, focusedDay.month, dayOfMonth);
+              final date = DateTime(
+                focusedDay.year,
+                focusedDay.month,
+                dayOfMonth,
+              );
               final isSelected = date.isSameDay(selectedDay);
               final emoji = emojiMap[dayOfMonth] ?? '';
-              
+
               return GestureDetector(
                 onTap: () => onDaySelected(date, focusedDay),
                 child: Column(
@@ -335,12 +364,16 @@ class SentimentCalendar extends StatelessWidget {
                   children: [
                     CircleAvatar(
                       radius: 14,
-                      backgroundColor: isSelected ? AppColors.primary : Colors.transparent,
+                      backgroundColor: isSelected
+                          ? AppColors.primary
+                          : Colors.transparent,
                       child: Text(
                         '$dayOfMonth',
                         style: TextStyle(
                           color: isSelected ? Colors.white : AppColors.text,
-                          fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                          fontWeight: isSelected
+                              ? FontWeight.bold
+                              : FontWeight.normal,
                           fontSize: 14,
                         ),
                       ),
@@ -351,9 +384,12 @@ class SentimentCalendar extends StatelessWidget {
                         width: 25,
                         child: FittedBox(
                           fit: BoxFit.scaleDown,
-                          child: Text(emoji, style: const TextStyle(fontSize: 14)),
+                          child: Text(
+                            emoji,
+                            style: const TextStyle(fontSize: 14),
+                          ),
                         ),
-                      ), 
+                      ),
                   ],
                 ),
               );
@@ -364,10 +400,21 @@ class SentimentCalendar extends StatelessWidget {
     );
   }
 }
+
 String _monthName(int month) {
   const months = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'
+    'January',
+    'February',
+    'March',
+    'April',
+    'May',
+    'June',
+    'July',
+    'August',
+    'September',
+    'October',
+    'November',
+    'December',
   ];
   return months[month - 1];
 }
@@ -387,12 +434,12 @@ class JournalSnippetCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final bool hasEntry = entry != null;
-    
+
     final String snippetText = hasEntry
         ? entry!.text
         : selectedDate.isSameDay(DateTime.now())
-            ? 'Tap to write your thoughts for today.'
-            : 'No journal entry for this date.';
+        ? 'Tap to write your thoughts for today.'
+        : 'No journal entry for this date.';
 
     return GestureDetector(
       onTap: onTap,
@@ -402,7 +449,9 @@ class JournalSnippetCard extends StatelessWidget {
         decoration: BoxDecoration(
           color: AppColors.cardColor,
           borderRadius: BorderRadius.circular(15),
-          border: hasEntry ? Border.all(color: AppColors.secondary.withOpacity(0.3)) : null,
+          border: hasEntry
+              ? Border.all(color: AppColors.secondary.withOpacity(0.3))
+              : null,
           boxShadow: [
             BoxShadow(
               color: Colors.black.withOpacity(0.05),
@@ -419,7 +468,9 @@ class JournalSnippetCard extends StatelessWidget {
                 'Sentiment: ${entry!.sentiment.emoji} ${entry!.sentiment.description}',
                 style: TextStyle(
                   fontWeight: FontWeight.bold,
-                  color: entry!.sentiment.score < 0 ? AppColors.danger : AppColors.primary,
+                  color: entry!.sentiment.score < 0
+                      ? AppColors.danger
+                      : AppColors.primary,
                 ),
               ),
             if (hasEntry) const SizedBox(height: 8),
@@ -429,7 +480,9 @@ class JournalSnippetCard extends StatelessWidget {
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
                 fontSize: 16,
-                color: hasEntry ? AppColors.text : AppColors.secondary.withOpacity(0.7),
+                color: hasEntry
+                    ? AppColors.text
+                    : AppColors.secondary.withOpacity(0.7),
                 fontStyle: hasEntry ? FontStyle.normal : FontStyle.italic,
               ),
             ),
@@ -439,6 +492,7 @@ class JournalSnippetCard extends StatelessWidget {
     );
   }
 }
+
 class CustomDrawerButton extends StatefulWidget {
   final List<DomainScore> detectedIssues;
   final List<JournalEntry> journalEntries;
@@ -448,8 +502,6 @@ class CustomDrawerButton extends StatefulWidget {
     required this.detectedIssues,
     required this.journalEntries,
   });
-
-
 
   @override
   State<CustomDrawerButton> createState() => _CustomDrawerButtonState();
@@ -487,15 +539,15 @@ class _CustomDrawerButtonState extends State<CustomDrawerButton> {
                 ),
               ],
             ),
-            child: Column( 
+            child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-              _DrawerButton(
-                text: 'DETECTED ISSUE',
-                color: AppColors.secondary,
-                onTap: _hideOverlay,
-                detectedIssues: widget.detectedIssues,
-              ),
+                _DrawerButton(
+                  text: 'DETECTED ISSUE',
+                  color: AppColors.secondary,
+                  onTap: _hideOverlay,
+                  detectedIssues: widget.detectedIssues,
+                ),
 
                 _DrawerButton(
                   text: 'RECOMMENDATIONS',
@@ -513,7 +565,7 @@ class _CustomDrawerButtonState extends State<CustomDrawerButton> {
                   text: 'PROFESSIONALS',
                   color: AppColors.secondary.withOpacity(0.7),
                   onTap: _hideOverlay,
-                ),  
+                ),
               ],
             ),
           ),
@@ -524,7 +576,7 @@ class _CustomDrawerButtonState extends State<CustomDrawerButton> {
     Overlay.of(context).insert(_overlayEntry!);
   }
 
-  void _hideOverlay() { 
+  void _hideOverlay() {
     if (_overlayEntry != null) {
       _overlayEntry!.remove();
       _overlayEntry = null;
@@ -560,43 +612,35 @@ class _DrawerButton extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       // The fix: Add 'async' right here
-      onTap: () async { 
+      onTap: () async {
         onTap(); // This hides the overlay menu
-        
+
         if (text == 'DETECTED ISSUE') {
           Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => const DetectedIssueScreen(),
-            ),
-          );
-        }
-        
-        if (text == 'RECOMMENDATIONS') {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => const RecommendationsScreen(),
-            ),
-          );
-        }
-        
-        if (text == 'RISK TRENDS') {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => const RiskTrendsScreen(),
-            ),
+            MaterialPageRoute(builder: (_) => const DetectedIssueScreen()),
           );
         }
 
+        if (text == 'RECOMMENDATIONS') {
+          Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const RecommendationsScreen()),
+          );
+        }
+
+        if (text == 'RISK TRENDS') {
+          Navigator.of(
+            context,
+          ).push(MaterialPageRoute(builder: (_) => const RiskTrendsScreen()));
+        }
+
         if (text == 'PROFESSIONALS') {
-  onTap(); // This closes the overlay menu immediately
-  
-  // Navigate immediately without waiting for Firestore here
-  Navigator.of(context).push(
-    MaterialPageRoute(
-      builder: (_) => const ProfessionalsScreen(),
-    ),
-  );
-}
+          onTap(); // This closes the overlay menu immediately
+
+          // Navigate immediately without waiting for Firestore here
+          Navigator.of(context).push(
+            MaterialPageRoute(builder: (_) => const ProfessionalsScreen()),
+          );
+        }
       },
       child: Container(
         width: 180,
@@ -610,9 +654,9 @@ class _DrawerButton extends StatelessWidget {
           child: Text(
             text,
             style: const TextStyle(
-              color: Colors.white, 
-              fontWeight: FontWeight.bold, 
-              fontSize: 14
+              color: Colors.white,
+              fontWeight: FontWeight.bold,
+              fontSize: 14,
             ),
           ),
         ),
