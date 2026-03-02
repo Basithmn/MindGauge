@@ -11,6 +11,7 @@ import 'detected_issue_screen.dart';
 import 'recommendations_screen.dart';
 import 'risk_trends_screen.dart';
 import 'professionals_screen.dart';
+import 'interests_screen.dart';
 
 class MainDashboard extends StatefulWidget {
   final UserProfile userProfile;
@@ -79,6 +80,7 @@ class _MainDashboardState extends State<MainDashboard> {
         elevation: 0,
         actions: [
           CustomDrawerButton(
+            userProfile: widget.userProfile,
             detectedIssues: _lastDetectedIssues,
             journalEntries: _entries,
           ),
@@ -494,11 +496,13 @@ class JournalSnippetCard extends StatelessWidget {
 }
 
 class CustomDrawerButton extends StatefulWidget {
+  final UserProfile userProfile;
   final List<DomainScore> detectedIssues;
   final List<JournalEntry> journalEntries;
 
   const CustomDrawerButton({
     super.key,
+    required this.userProfile,
     required this.detectedIssues,
     required this.journalEntries,
   });
@@ -566,6 +570,12 @@ class _CustomDrawerButtonState extends State<CustomDrawerButton> {
                   color: AppColors.secondary.withOpacity(0.7),
                   onTap: _hideOverlay,
                 ),
+                _DrawerButton(
+                  text: 'INTERESTS',
+                  color: AppColors.secondary.withOpacity(0.85),
+                  onTap: _hideOverlay,
+                  userProfile: widget.userProfile,
+                ),
               ],
             ),
           ),
@@ -598,6 +608,7 @@ class _DrawerButton extends StatelessWidget {
   final VoidCallback onTap;
   final List<DomainScore>? detectedIssues;
   final List<JournalEntry>? journalEntries;
+  final UserProfile? userProfile;
 
   const _DrawerButton({
     super.key, // Added super.key for best practice
@@ -606,6 +617,7 @@ class _DrawerButton extends StatelessWidget {
     required this.onTap,
     this.detectedIssues,
     this.journalEntries,
+    this.userProfile,
   });
 
   @override
@@ -631,6 +643,14 @@ class _DrawerButton extends StatelessWidget {
           Navigator.of(
             context,
           ).push(MaterialPageRoute(builder: (_) => const RiskTrendsScreen()));
+        }
+
+        if (text == 'INTERESTS' && userProfile != null) {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (_) => InterestsScreen(userProfile: userProfile!),
+            ),
+          );
         }
 
         if (text == 'PROFESSIONALS') {

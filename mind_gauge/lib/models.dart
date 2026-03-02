@@ -7,6 +7,7 @@ class UserProfile {
   final String userId;
   final int age;
   final String location;
+  final List<String> interests;
 
   UserProfile({
     required this.email,
@@ -14,6 +15,7 @@ class UserProfile {
     required this.userId,
     required this.age,
     required this.location,
+    required this.interests,
   });
 
   factory UserProfile.fromDatabase(Map<String, dynamic> data, User user) {
@@ -23,6 +25,7 @@ class UserProfile {
       userId: user.uid,
       age: data['age'] as int,
       location: data['location'] as String,
+      interests: List<String>.from(data['interests'] ?? []),
     );
   }
 }
