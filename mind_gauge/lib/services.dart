@@ -51,7 +51,7 @@ class AuthService {
 
       final user = userCredential.user!;
 
-      await _userService.saveUserDetails(user.uid, name, age, location);
+      await _userService.saveUserDetails(user.uid, name, age, location, []);
 
       return UserProfile(
         email: email,
@@ -59,6 +59,7 @@ class AuthService {
         userId: user.uid,
         age: age,
         location: location,
+        interests: [],
       );
     } on FirebaseAuthException catch (e) {
       throw e.code;
@@ -76,11 +77,21 @@ class FirebaseUserService {
     String name,
     int age,
     String location,
+    List<String>? interests,
   ) async {
+    final data = {'name': name, 'age': age, 'location': location};
+    if (interests != null) {
+      data['interests'] = interests;
+    }
+    await _firestore
+        .collection('users')
+        .doc(userId)
+        .set(data, SetOptions(merge: true));
+  }
+
+  Future<void> saveInterests(String userId, List<String> interests) async {
     await _firestore.collection('users').doc(userId).set({
-      'name': name,
-      'age': age,
-      'location': location,
+      'interests': interests,
     }, SetOptions(merge: true));
   }
 
@@ -1384,11 +1395,9 @@ Future<String?> getMLDiagnosis(
       "responses": slicedScores,
     });
 
-    final response = await http.post(
-      url,
-      headers: {"Content-Type": "application/json"},
-      body: body,
-    ).timeout(const Duration(seconds: 8));
+    final response = await http
+        .post(url, headers: {"Content-Type": "application/json"}, body: body)
+        .timeout(const Duration(seconds: 8));
 
     if (response.statusCode == 200) {
       final result = jsonDecode(response.body);
