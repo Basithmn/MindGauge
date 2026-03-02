@@ -257,53 +257,122 @@ class RecommendationsScreen extends StatelessWidget {
                               gridDelegate:
                                   const SliverGridDelegateWithFixedCrossAxisCount(
                                     crossAxisCount: 2,
-                                    crossAxisSpacing: 10,
-                                    mainAxisSpacing: 10,
-                                    childAspectRatio: 2.5,
+                                    crossAxisSpacing: 15,
+                                    mainAxisSpacing: 15,
+                                    childAspectRatio: 1.4,
                                   ),
                               itemCount: interests.length,
                               itemBuilder: (context, idx) {
                                 final interest = interests[idx];
+                                // Create a unique gradient for each card based on index
+                                final gradients = [
+                                  [
+                                    const Color(0xFF00C8C8),
+                                    const Color(0xFF007A7A),
+                                  ],
+                                  [
+                                    const Color(0xFF6A11CB),
+                                    const Color(0xFF2575FC),
+                                  ],
+                                  [
+                                    const Color(0xFFFF5F6D),
+                                    const Color(0xFFFFC371),
+                                  ],
+                                  [
+                                    const Color(0xFF3CA55C),
+                                    const Color(0xFFB5AC49),
+                                  ],
+                                  [
+                                    const Color(0xFF1CB5E0),
+                                    const Color(0xFF000851),
+                                  ],
+                                ];
+                                final currentGradient =
+                                    gradients[idx % gradients.length];
+
                                 return InkWell(
                                   onTap: () => _launchYoutube(interest),
+                                  borderRadius: BorderRadius.circular(20),
                                   child: Container(
                                     decoration: BoxDecoration(
-                                      color: AppColors.primary.withOpacity(0.1),
-                                      borderRadius: BorderRadius.circular(10),
-                                      border: Border.all(
-                                        color: AppColors.primary.withOpacity(
-                                          0.3,
-                                        ),
+                                      gradient: LinearGradient(
+                                        colors: currentGradient,
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
                                       ),
+                                      borderRadius: BorderRadius.circular(20),
+                                      boxShadow: [
+                                        BoxShadow(
+                                          color: currentGradient[0].withOpacity(
+                                            0.3,
+                                          ),
+                                          blurRadius: 12,
+                                          offset: const Offset(0, 6),
+                                        ),
+                                      ],
                                     ),
-                                    child: Center(
-                                      child: Padding(
-                                        padding: const EdgeInsets.all(8.0),
-                                        child: Row(
-                                          mainAxisAlignment:
-                                              MainAxisAlignment.center,
-                                          children: [
-                                            const Icon(
-                                              Icons.play_circle_fill,
-                                              color: Colors.red,
-                                              size: 20,
+                                    child: Stack(
+                                      children: [
+                                        // Top accent circle for detail
+                                        Positioned(
+                                          right: -20,
+                                          top: -20,
+                                          child: Container(
+                                            width: 80,
+                                            height: 80,
+                                            decoration: BoxDecoration(
+                                              color: Colors.white.withOpacity(
+                                                0.1,
+                                              ),
+                                              shape: BoxShape.circle,
                                             ),
-                                            const SizedBox(width: 5),
-                                            Expanded(
-                                              child: Text(
+                                          ),
+                                        ),
+                                        Padding(
+                                          padding: const EdgeInsets.all(16.0),
+                                          child: Column(
+                                            mainAxisAlignment:
+                                                MainAxisAlignment.center,
+                                            children: [
+                                              Container(
+                                                padding: const EdgeInsets.all(
+                                                  8,
+                                                ),
+                                                decoration: BoxDecoration(
+                                                  color: Colors.white
+                                                      .withOpacity(0.2),
+                                                  shape: BoxShape.circle,
+                                                ),
+                                                child: const Icon(
+                                                  Icons.play_arrow_rounded,
+                                                  color: Colors.white,
+                                                  size: 28,
+                                                ),
+                                              ),
+                                              const SizedBox(height: 12),
+                                              Text(
                                                 interest,
                                                 textAlign: TextAlign.center,
                                                 style: const TextStyle(
-                                                  fontWeight: FontWeight.bold,
-                                                  fontSize: 12,
+                                                  color: Colors.white,
+                                                  fontWeight: FontWeight.w900,
+                                                  fontSize: 14,
+                                                  letterSpacing: 0.5,
+                                                  shadows: [
+                                                    Shadow(
+                                                      color: Colors.black26,
+                                                      blurRadius: 4,
+                                                      offset: Offset(0, 2),
+                                                    ),
+                                                  ],
                                                 ),
                                                 maxLines: 2,
                                                 overflow: TextOverflow.ellipsis,
                                               ),
-                                            ),
-                                          ],
+                                            ],
+                                          ),
                                         ),
-                                      ),
+                                      ],
                                     ),
                                   ),
                                 );
