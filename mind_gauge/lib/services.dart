@@ -1431,8 +1431,9 @@ Future<String?> getLevel2MLDiagnosis(
     String apiDomain = domainKey;
     if (domainKey == 'somatic symptoms') apiDomain = 'somatic';
     if (domainKey == 'sleep problems') apiDomain = 'sleep';
-    if (domainKey == 'repetitive thoughts and behaviors')
+    if (domainKey == 'repetitive thoughts and behaviors') {
       apiDomain = 'repetitive_thoughts';
+    }
     if (domainKey == 'substance use') apiDomain = 'substance_use';
 
     final body = jsonEncode({

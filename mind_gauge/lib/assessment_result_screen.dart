@@ -143,7 +143,7 @@ class AssessmentResultScreen extends StatelessWidget {
                                       ),
                                     ),
                                   )
-                                  .toList(),
+                                  ,
                             ],
                           ],
                         ),
@@ -192,7 +192,7 @@ class AssessmentResultScreen extends StatelessWidget {
                       userProfile: userProfile,
                     ),
                   )
-                  .toList(),
+                  ,
             ] else
               const Center(
                 child: Column(

@@ -611,7 +611,6 @@ class _DrawerButton extends StatelessWidget {
   final UserProfile? userProfile;
 
   const _DrawerButton({
-    super.key, // Added super.key for best practice
     required this.text,
     required this.color,
     required this.onTap,

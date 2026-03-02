@@ -212,7 +212,7 @@ class _QuestionnaireScreenState extends State<QuestionnaireScreen> {
             // Safe Camera Preview (Small debug view)
             if (_cameraService.isInitialized &&
                 _cameraService.controller != null)
-              Container(
+              SizedBox(
                 height: 1,
                 width: 1,
                 child: CameraPreview(
