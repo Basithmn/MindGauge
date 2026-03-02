@@ -41,16 +41,16 @@ class RecommendationsScreen extends StatelessWidget {
     String query = interest;
     switch (interest) {
       case 'Reading books':
-        query = 'book recommendations 2024';
+        query = 'book recommendations 2026';
         break;
       case 'Listening to music':
         query = 'relaxing music for stress relief';
         break;
       case 'Watching movies / web series':
-        query = 'best web series 2024 trailer';
+        query = 'best web series 2025 trailer';
         break;
       case 'Playing video games':
-        query = 'top video games 2024 gameplay';
+        query = 'top video games 2025 gameplay';
         break;
       case 'Playing sports (cricket, football, badminton)':
         query = 'sports match highlights';
@@ -65,7 +65,7 @@ class RecommendationsScreen extends StatelessWidget {
         query = 'popular songs karaoke with lyrics';
         break;
       case 'Traveling':
-        query = 'top travel destinations 2024';
+        query = 'top travel destinations 2026';
         break;
       case 'Photography':
         query = 'photography tips for beginners';
@@ -86,7 +86,7 @@ class RecommendationsScreen extends StatelessWidget {
         query = 'creative writing prompts';
         break;
       case 'Learning new skills online':
-        query = 'top skills to learn in 2024';
+        query = 'top skills to learn in 2026';
         break;
       case 'Browsing the internet':
         query = 'interesting websites to browse';
@@ -259,7 +259,7 @@ class RecommendationsScreen extends StatelessWidget {
                                     crossAxisCount: 2,
                                     crossAxisSpacing: 15,
                                     mainAxisSpacing: 15,
-                                    childAspectRatio: 1.4,
+                                    childAspectRatio: 1.1,
                                   ),
                               itemCount: interests.length,
                               itemBuilder: (context, idx) {

@@ -343,6 +343,7 @@ class SentimentCalendar extends StatelessWidget {
               crossAxisCount: 7,
               mainAxisSpacing: 4.0,
               crossAxisSpacing: 4.0,
+              childAspectRatio: 0.8,
             ),
             itemCount: daysInMonth + firstDayOfWeek,
             itemBuilder: (context, index) {
