@@ -597,8 +597,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   keyboardType: TextInputType.emailAddress,
                   validator: (value) {
                     if (value!.isEmpty) return 'Email is required';
-                    if (!RegExp(r'\S+@\S+\.\S+').hasMatch(value))
+                    if (!RegExp(r'\S+@\S+\.\S+').hasMatch(value)) {
                       return 'Enter a valid email';
+                    }
                     return null;
                   },
                 ),
@@ -614,8 +615,9 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   keyboardType: TextInputType.number,
                   validator: (value) {
                     if (value!.isEmpty) return 'Age is required';
-                    if (int.tryParse(value) == null || int.parse(value) <= 0)
+                    if (int.tryParse(value) == null || int.parse(value) <= 0) {
                       return 'Must be a valid age';
+                    }
                     return null;
                   },
                 ),
