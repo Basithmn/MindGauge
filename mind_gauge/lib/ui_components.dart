@@ -89,7 +89,7 @@ class StyledButton extends StatelessWidget {
   }
 }
 
-class CustomTextField extends StatelessWidget {
+class CustomTextField extends StatefulWidget {
   final String label;
   final bool isPassword;
   final TextEditingController? controller;
@@ -106,6 +106,19 @@ class CustomTextField extends StatelessWidget {
   });
 
   @override
+  State<CustomTextField> createState() => _CustomTextFieldState();
+}
+
+class _CustomTextFieldState extends State<CustomTextField> {
+  bool _obscureText = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _obscureText = widget.isPassword;
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 10.0),
@@ -113,7 +126,7 @@ class CustomTextField extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            label,
+            widget.label,
             style: const TextStyle(
               color: AppColors.secondary,
               fontSize: 16,
@@ -122,15 +135,26 @@ class CustomTextField extends StatelessWidget {
           ),
           const SizedBox(height: 5),
           TextFormField(
-            controller: controller,
-            obscureText: isPassword,
+            controller: widget.controller,
+            obscureText: _obscureText,
             style: const TextStyle(color: AppColors.text),
-            validator: validator,
-            keyboardType: keyboardType,
+            validator: widget.validator,
+            keyboardType: widget.keyboardType,
             decoration: InputDecoration(
               filled: true,
               fillColor: Colors.white,
               contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+              suffixIcon: widget.isPassword ? IconButton(
+                icon: Icon(
+                  _obscureText ? Icons.visibility_off : Icons.visibility,
+                  color: AppColors.secondary,
+                ),
+                onPressed: () {
+                  setState(() {
+                    _obscureText = !_obscureText;
+                  });
+                },
+              ) : null,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(15),
                 borderSide: BorderSide.none,
