@@ -58,8 +58,8 @@ def predict_substance_use_category(raw_scores):
 
 if __name__ == '__main__':
     # Test cases
-    scores_1 = [3, 0, 4, 0, 2, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0] 
-    scores_2 = [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]
+    scores_1 = [4, 1, 5, 1, 3, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1]
+    scores_2 = [1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1]
     
     print("-" * 40)
     print(f"Scores: {scores_1} | Result: {predict_substance_use_category(scores_1)}")
