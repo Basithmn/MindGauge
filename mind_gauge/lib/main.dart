@@ -1027,7 +1027,7 @@ class StyledButton extends StatelessWidget {
   }
 }
 
-class CustomTextField extends StatelessWidget {
+class CustomTextField extends StatefulWidget {
   final String label;
   final bool isPassword;
   final TextEditingController? controller;
@@ -1044,6 +1044,19 @@ class CustomTextField extends StatelessWidget {
   });
 
   @override
+  State<CustomTextField> createState() => _CustomTextFieldState();
+}
+
+class _CustomTextFieldState extends State<CustomTextField> {
+  bool _obscureText = true;
+
+  @override
+  void initState() {
+    super.initState();
+    _obscureText = widget.isPassword;
+  }
+
+  @override
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 10.0),
@@ -1051,7 +1064,7 @@ class CustomTextField extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
-            label,
+            widget.label,
             style: const TextStyle(
               color: AppColors.secondary,
               fontSize: 16,
@@ -1060,15 +1073,26 @@ class CustomTextField extends StatelessWidget {
           ),
           const SizedBox(height: 5),
           TextFormField(
-            controller: controller,
-            obscureText: isPassword,
+            controller: widget.controller,
+            obscureText: _obscureText,
             style: const TextStyle(color: AppColors.text),
-            validator: validator,
-            keyboardType: keyboardType,
+            validator: widget.validator,
+            keyboardType: widget.keyboardType,
             decoration: InputDecoration(
               filled: true,
               fillColor: Colors.white,
               contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+              suffixIcon: widget.isPassword ? IconButton(
+                icon: Icon(
+                  _obscureText ? Icons.visibility_off : Icons.visibility,
+                  color: AppColors.secondary,
+                ),
+                onPressed: () {
+                  setState(() {
+                    _obscureText = !_obscureText;
+                  });
+                },
+              ) : null,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(15),
                 borderSide: BorderSide.none,
@@ -1927,22 +1951,15 @@ void _handleSubmit() async {
     _getHighestScoreForDomain("XII"),  // Personality Functioning
   ];
 
-  // 2. Call Global Level 1 Diagnostic Model
-  String? overallStatus = await getMLDiagnosis("level1", thirteenDomainScores, widget.userAge);
+  // 2. ML Diagnosis REMOVED as per request.
+  // We rely solely on the threshold-based categoricalResults.
+  String? overallStatus = null; 
 
   // 3. Identify domains requiring categorical severity analysis
   final List<DomainScore> categoricalResults = await _service.submitQuestionnaire(_questions, widget.userAge);
-  final List<int> rawScores = _questions.map((q) => q.score.round()).toList();
-
-  // 4. Fetch specific severity labels from ML categorical models
-  for (var res in categoricalResults) {
-    try {
-      String? categoricalSeverity = await getMLDiagnosis(res.domainName, rawScores, widget.userAge);
-      res.mlDiagnosis = categoricalSeverity ?? "Clinical Review Required"; 
-    } catch (e) {
-      res.mlDiagnosis = "Analysis Unavailable";
-    }
-  }
+  
+  // 4. ML Severity Analysis REMOVED.
+  // We just use the threshold logic already processed in submitQuestionnaire.
 
   // 5. Save everything to Firestore (Using the new 3-argument signature)
   final user = FirebaseAuth.instance.currentUser;
@@ -2090,6 +2107,7 @@ class AssessmentResultScreen extends StatelessWidget {
   crossAxisAlignment: CrossAxisAlignment.start,
   children: [
     // --- OVERALL CLINICAL STATUS HEADER ---
+    if (overallStatus != null)
     Container(
       width: double.infinity,
       padding: const EdgeInsets.all(20),
@@ -2106,7 +2124,7 @@ class AssessmentResultScreen extends StatelessWidget {
           ),
           const SizedBox(height: 8),
           Text(
-            overallStatus ?? "Screening Complete",
+            overallStatus!,
             textAlign: TextAlign.center,
             style: const TextStyle(
               fontSize: 24, 
@@ -2211,35 +2229,13 @@ class DomainResultCard extends StatelessWidget {
           ),
           const SizedBox(height: 12),
           
-          // AI ANALYSIS BOX - Displays Level 2 LGBM Result
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.all(12),
-            decoration: BoxDecoration(
-              color: Colors.white.withOpacity(0.8),
-              borderRadius: BorderRadius.circular(10),
-              border: Border.all(color: AppColors.primary.withOpacity(0.2)),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  "ML-DRIVEN DIAGNOSIS:",
-                  style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: AppColors.secondary),
-                ),
-                const SizedBox(height: 4),
-                Text(
-                  score.mlDiagnosis ?? "Analyzing patterns...", 
-                  style: const TextStyle(
-                    fontSize: 16, 
-                    fontWeight: FontWeight.w800, 
-                    color: AppColors.text,
-                    fontStyle: FontStyle.italic,
-                  ),
-                ),
-              ],
-            ),
-          ),
+          // ML ANALYSIS BOX REMOVED
+          // Container(
+          //   width: double.infinity,
+          //   padding: const EdgeInsets.all(12),
+          //   ...
+          //   child: ...
+          // ),
           const SizedBox(height: 12),
           
           // Threshold Check Label
