@@ -151,10 +151,17 @@ class AuthScreen extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(
-                Icons.psychology_outlined,
-                size: 100,
-                color: AppColors.primary,
+                Image.asset(
+                'mind_gauge_logo.jpeg',
+                width: 150,
+                height: 150,
+                errorBuilder: (context, error, stackTrace) {
+                  return const Icon(
+                    Icons.psychology_outlined,
+                    size: 150,
+                    color: AppColors.primary,
+                  );
+                },
               ),
               const SizedBox(height: 20),
               const Text('MINDGAUGE', style: kTitleStyle),
