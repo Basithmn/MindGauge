@@ -51,8 +51,8 @@ def predict_somatic_severity(raw_scores):
 
 if __name__ == '__main__':
     # Test cases
-    scores_1 = [2, 1, 2, 2, 1, 2, 0, 1, 2, 2, 1, 2, 0, 1, 2] 
-    scores_2 = [0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0]
+    scores_1 = [3, 2, 3, 3, 2, 3, 1, 2, 3, 3, 2, 3, 1, 2, 3]
+    scores_2 = [1, 1, 1, 2, 1, 1, 1, 1, 1, 2, 1, 1, 1, 1, 1]
     
     print("-" * 40)
     print(f"Scores: {scores_1} | Result: {predict_somatic_severity(scores_1)}")

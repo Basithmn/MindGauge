@@ -59,8 +59,8 @@ def predict_mania_severity(raw_scores):
 
 if __name__ == '__main__':
     # Test cases using direct scores (ASRM range is typically 0-4)
-    scores_1 = [4, 3, 4, 3, 4] 
-    scores_2 = [0, 1, 0, 0, 1]
+    scores_1 = [5, 4, 5, 4, 5] 
+    scores_2 = [1, 2, 1, 1, 2]
     
     print("-" * 40)
     print("ADULT MANIA (ASRM) PREDICTOR")

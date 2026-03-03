@@ -7,3 +7,4 @@ textblob
 onnxruntime
 opencv-python-headless
 numpy
+moviepy

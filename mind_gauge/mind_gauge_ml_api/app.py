@@ -59,7 +59,7 @@ def predict():
         if len(responses) > expected_features:
             responses = responses[:expected_features]
         elif len(responses) < expected_features:
-            responses = responses + [0] * (expected_features - len(responses))
+            responses = responses + [1] * (expected_features - len(responses))
 
         # 4. INFERENCE
         input_df = pd.DataFrame([responses])
@@ -237,70 +237,198 @@ def analyze_face():
         except Exception as e:
             return jsonify({"status": "error", "message": "Invalid image format"}), 400
 
-        # Detect Faces
-        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-        faces = face_cascade.detectMultiScale(gray, 1.3, 5)
-
-        print(f"Faces detected: {len(faces)}") # DEBUG
-
-        if len(faces) == 0:
-            return jsonify({
-                "status": "success",
-                "dominant_emotion": "neutral",
-                "score": 0.0,
-                "message": "No face detected"
-            })
-
-        # Process the largest face
-        (x, y, w, h) = sorted(faces, key=lambda f: f[2]*f[3], reverse=True)[0]
-        face_roi = img[y:y+h, x:x+w]
-
-        dominant_emotion = "neutral"
-        score = 0.0
-        details = {}
-
-        if ort_session:
-            try:
-                processed_face = preprocess_face(face_roi)
-                input_name = ort_session.get_inputs()[0].name
-                
-                # Run inference
-                ort_outs = ort_session.run(None, {input_name: processed_face})
-                embeddings = ort_outs[0]
-                
-                # Getting probabilities
-                probs = softmax(embeddings[0])
-                print(f"Raw Probabilities: {probs}") # DEBUG
-                
-                # Get dominant emotion
-                idx = np.argmax(probs)
-                dominant_emotion = EMOTIONS[idx]
-                score = float(probs[idx])
-                
-                print(f"Detected: {dominant_emotion} ({score:.2f})") # DEBUG
-
-                details = {emotion: float(prob) for emotion, prob in zip(EMOTIONS, probs)}
-            except Exception as e:
-                print(f"Inference Error: {e}")
-        else:
-            # Fallback if model/session is missing
-             print("ONNX session missing, returning fallback.") # DEBUG
-             dominant_emotion = "neutral (fallback)"
-             score = 1.0
-
-
-        return jsonify({
-            "status": "success",
-            "dominant_emotion": dominant_emotion,
-            "score": score,
-            "details": details
-        })
+        result = process_single_frame(img)
+        return jsonify(result)
 
     except Exception as e:
         print(f"Face Analysis Error: {str(e)}")
         return jsonify({"status": "error", "message": str(e)}), 500
 
+def process_single_frame(img):
+    """Processes a single frame and returns emotion data."""
+    if img is None:
+        return {"status": "error", "message": "Empty frame"}
+
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    faces = face_cascade.detectMultiScale(gray, 1.3, 5)
+
+    if len(faces) == 0:
+        return {
+            "status": "success",
+            "dominant_emotion": "neutral",
+            "score": 0.0,
+            "message": "No face detected"
+        }
+
+    # Process the largest face
+    (x, y, w, h) = sorted(faces, key=lambda f: f[2]*f[3], reverse=True)[0]
+    face_roi = img[y:y+h, x:x+w]
+
+    dominant_emotion = "neutral"
+    score = 0.0
+    details = {}
+
+    if ort_session:
+        try:
+            processed_face = preprocess_face(face_roi)
+            input_name = ort_session.get_inputs()[0].name
+            
+            # Run inference
+            ort_outs = ort_session.run(None, {input_name: processed_face})
+            embeddings = ort_outs[0]
+            
+            # Getting probabilities
+            probs = softmax(embeddings[0])
+            
+            # Get dominant emotion
+            idx = np.argmax(probs)
+            dominant_emotion = EMOTIONS[idx]
+            score = float(probs[idx])
+            
+            details = {emotion: float(prob) for emotion, prob in zip(EMOTIONS, probs)}
+        except Exception as e:
+            print(f"Inference Error: {e}")
+    
+    return {
+        "status": "success",
+        "dominant_emotion": dominant_emotion,
+        "score": score,
+        "details": details
+    }
+
+import tempfile
+
+@app.route('/analyze_video', methods=['POST'])
+def analyze_video():
+    """Processes a 5-10s video and returns aggregated visual sentiment."""
+    try:
+        data = request.get_json()
+        video_data = data.get('video', '')
+
+        if not video_data:
+            return jsonify({"status": "error", "message": "No video provided"}), 400
+
+        if ',' in video_data:
+            video_data = video_data.split(',')[1]
+
+        # Decode and save to temp file
+        decoded_video = base64.b64decode(video_data)
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.mp4') as temp_video:
+            temp_video.write(decoded_video)
+            video_path = temp_video.name
+
+        cap = cv2.VideoCapture(video_path)
+        fps = cap.get(cv2.CAP_PROP_FPS)
+        frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+        
+        # We sample every 500ms
+        sample_rate = int(fps / 2) if fps > 0 else 1
+        if sample_rate == 0: sample_rate = 1
+
+        emotion_history = []
+        counts = {emotion: 0 for emotion in EMOTIONS}
+        scores = {emotion: 0.0 for emotion in EMOTIONS}
+
+        current_frame = 0
+        while cap.isOpened():
+            ret, frame = cap.read()
+            if not ret:
+                break
+            
+            if current_frame % sample_rate == 0:
+                result = process_single_frame(frame)
+                if result['status'] == 'success' and 'details' in result:
+                    emotion_history.append(result['dominant_emotion'])
+                    for emotion, prob in result['details'].items():
+                        counts[emotion] += 1
+                        scores[emotion] += prob
+            
+            current_frame += 1
+
+        cap.release()
+        os.unlink(video_path) # Delete temp file
+
+        if not emotion_history:
+            return jsonify({
+                "status": "success",
+                "dominant_emotion": "neutral",
+                "message": "No faces detected in video",
+                "video_summary": {}
+            })
+
+        # Aggregate
+        summary = {}
+        for emotion in EMOTIONS:
+            if counts[emotion] > 0:
+                summary[emotion] = scores[emotion] / counts[emotion]
+            else:
+                summary[emotion] = 0.0
+
+        dominant = max(summary, key=summary.get)
+
+        return jsonify({
+            "status": "success",
+            "dominant_emotion": dominant,
+            "overall_score": summary[dominant],
+            "visual_sentiment_profile": summary,
+            "frame_count": current_frame,
+            "samples": len(emotion_history)
+        })
+
+    except Exception as e:
+        print(f"Video Analysis Error: {str(e)}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+@app.route('/combined_report', methods=['POST'])
+def combined_report():
+    """Combines questionnaire results with visual sentiment for a holistic insight."""
+    try:
+        data = request.get_json()
+        q_results = data.get('questionnaire_results', []) # List of DomainScore objects (serialized)
+        v_sentiment = data.get('visual_sentiment', {}) # Output from /analyze_video
+
+        dominant_visual = v_sentiment.get('dominant_emotion', 'neutral')
+        visual_profile = v_sentiment.get('visual_sentiment_profile') or v_sentiment.get('details') or {}
+
+        # Basic Correlation Logic
+        insights = []
+        high_risk_domains = [r for r in q_results if r.get('highestScore', 0) >= 3]
+        
+        # 1. Congruency Check
+        if dominant_visual in ['sadness', 'anger', 'fear'] and high_risk_domains:
+            insights.append("Visual indicators align with your reported symptoms, confirming the intensity of your current state.")
+        elif dominant_visual == 'happiness' and high_risk_domains:
+            insights.append("Your visual expression shows resilience/positivity despite reported challenges.")
+
+        # 2. Specific Domain Insights
+        for res in q_results:
+            domain = res.get('domainName', '')
+            score = res.get('highestScore', 0)
+            
+            if domain == 'Depression' and score >= 3 and visual_profile.get('sadness', 0) > 0.3:
+                insights.append("High Depression score correlated with significant visual sadness indicators.")
+            if domain == 'Anxiety' and score >= 3 and visual_profile.get('fear', 0) > 0.3:
+                insights.append("Reporting high Anxiety with visual signs of tension/fear.")
+
+        if not insights:
+            insights.append("Further clinical review is recommended to fully understand the relationship between your self-report and visual indicators.")
+
+        return jsonify({
+            "status": "success",
+            "holistic_insight": " ".join(insights),
+            "visual_summary": {
+                "dominant": dominant_visual,
+                "confidence": v_sentiment.get('overall_score', 0),
+                "profile": visual_profile
+            },
+            "risk_level": "High" if high_risk_domains else "Moderate" if q_results else "Low"
+        })
+
+    except Exception as e:
+        print(f"Combined Report Error: {str(e)}")
+        return jsonify({"status": "error", "message": str(e)}), 500
+
 if __name__ == '__main__':
     print("Starting MindGauge ML API...")
     print("Test endpoint available at: http://localhost:5000/test")
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    app.run(host='0.0.0.0', port=5000)
