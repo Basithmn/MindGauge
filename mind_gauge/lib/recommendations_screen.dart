@@ -232,7 +232,7 @@ class RecommendationsScreen extends StatelessWidget {
 
                     _GameCard(
                       title: 'Memory Game',
-                      issueNumber: '#P01',
+                      issueNumber: '',
                       date: DateFormat('EEEE, MMM d').format(DateTime.now()),
                       description:
                           'Improve focus by finding pairs of hidden symbols.',
@@ -270,7 +270,7 @@ class RecommendationsScreen extends StatelessWidget {
 
                     _GameCard(
                       title: 'Zip',
-                      issueNumber: '#Z360',
+                      issueNumber: '',
                       date: DateFormat('EEEE, MMM d').format(DateTime.now()),
                       description:
                           'Use your pathfinding skills to move through the grid.',
@@ -318,7 +318,7 @@ class RecommendationsScreen extends StatelessWidget {
 
                     _GameCard(
                       title: 'Mini Sudoku',
-                      issueNumber: '#S213',
+                      issueNumber: '',
                       date: DateFormat('EEEE, MMM d').format(DateTime.now()),
                       description:
                           'Good for fans of the classic Sudoku puzzles.',
@@ -356,7 +356,7 @@ class RecommendationsScreen extends StatelessWidget {
 
                     _GameCard(
                       title: 'Tango',
-                      issueNumber: '#T521',
+                      issueNumber: '',
                       date: DateFormat('EEEE, MMM d').format(DateTime.now()),
                       description:
                           'Use your reasoning skills to fill every cell.',
