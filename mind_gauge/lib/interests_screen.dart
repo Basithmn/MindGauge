@@ -4,6 +4,7 @@ import 'services.dart';
 import 'ui_components.dart';
 import 'interests_section.dart';
 
+
 class InterestsScreen extends StatelessWidget {
   final UserProfile userProfile;
 
