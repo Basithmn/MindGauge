@@ -204,10 +204,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final AuthService _authService = AuthService();
   final TextEditingController _emailController = TextEditingController();
   final TextEditingController _nameController = TextEditingController();
-  final TextEditingController _ageController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
   final TextEditingController _locationController = TextEditingController();
   final FocusNode _locationFocusNode = FocusNode();
+  DateTime? _selectedBirthDate;
   bool _isLoading = false;
 
   static const List<String> _indianCities = [
@@ -490,34 +490,26 @@ class _RegisterScreenState extends State<RegisterScreen> {
     if (!_formKey.currentState!.validate()) {
       return;
     }
-
-    setState(() {
-      _isLoading = true;
-    });
-
-    final int? age = int.tryParse(_ageController.text);
-
-    // Safety check for age (validation should handle this, but for try-catch clarity)
-    if (age == null) {
-      setState(() {
-        _isLoading = false;
-      });
+    
+    if (_selectedBirthDate == null) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Registration failed: Invalid age provided.'),
-          ),
+          const SnackBar(content: Text('Please select your birthdate.')),
         );
       }
       return;
     }
+
+    setState(() {
+      _isLoading = true;
+    });
 
     try {
       final userProfile = await _authService.register(
         email: _emailController.text.trim(),
         password: _passwordController.text,
         name: _nameController.text,
-        age: age,
+        birthDate: _selectedBirthDate!,
         location: _locationController.text,
       );
 
@@ -571,7 +563,6 @@ class _RegisterScreenState extends State<RegisterScreen> {
   void dispose() {
     _emailController.dispose();
     _nameController.dispose();
-    _ageController.dispose();
     _passwordController.dispose();
     _locationController.dispose();
     _locationFocusNode.dispose();
@@ -616,17 +607,69 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   validator: (value) =>
                       value!.isEmpty ? 'Name is required' : null,
                 ),
-                CustomTextField(
-                  label: 'Age',
-                  controller: _ageController,
-                  keyboardType: TextInputType.number,
-                  validator: (value) {
-                    if (value!.isEmpty) return 'Age is required';
-                    if (int.tryParse(value) == null || int.parse(value) <= 0) {
-                      return 'Must be a valid age';
-                    }
-                    return null;
-                  },
+                Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 10.0),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        'Birthdate',
+                        style: TextStyle(
+                          color: AppColors.secondary,
+                          fontSize: 16,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 5),
+                      InkWell(
+                        onTap: () async {
+                          final date = await showDatePicker(
+                            context: context,
+                            initialDate: DateTime(2000),
+                            firstDate: DateTime(1900),
+                            lastDate: DateTime.now(),
+                            builder: (context, child) {
+                              return Theme(
+                                data: Theme.of(context).copyWith(
+                                  colorScheme: const ColorScheme.light(
+                                    primary: AppColors.primary,
+                                    onPrimary: Colors.white,
+                                    onSurface: AppColors.secondary,
+                                  ),
+                                ),
+                                child: child!,
+                              );
+                            },
+                          );
+                          if (date != null) {
+                            setState(() => _selectedBirthDate = date);
+                          }
+                        },
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+                          decoration: BoxDecoration(
+                            color: Colors.white,
+                            borderRadius: BorderRadius.circular(15),
+                          ),
+                          child: Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                            children: [
+                              Text(
+                                _selectedBirthDate != null
+                                    ? '${_selectedBirthDate!.year}-${_selectedBirthDate!.month.toString().padLeft(2, '0')}-${_selectedBirthDate!.day.toString().padLeft(2, '0')}'
+                                    : 'Select Birthdate',
+                                style: TextStyle(
+                                  color: _selectedBirthDate != null ? AppColors.text : Colors.grey,
+                                  fontSize: 16,
+                                ),
+                              ),
+                              const Icon(Icons.calendar_today, color: AppColors.secondary),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
                 CustomTextField(
                   label: 'Password',

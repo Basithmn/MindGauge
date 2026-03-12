@@ -6,12 +6,14 @@ import 'models.dart';
 import 'services.dart';
 import 'ui_components.dart';
 import 'journaling_screen.dart';
-import 'questionnaire_screen.dart';
-import 'detected_issue_screen.dart';
 import 'recommendations_screen.dart';
 import 'risk_trends_screen.dart';
-import 'professionals_screen.dart';
-import 'interests_screen.dart';
+import 'happy_corner_screen.dart';
+
+import 'insights_tab.dart';
+import 'checkin_tab.dart';
+import 'profile_tab.dart';
+import 'edit_profile_screen.dart';
 
 class MainDashboard extends StatefulWidget {
   final UserProfile userProfile;
@@ -25,6 +27,8 @@ class _MainDashboardState extends State<MainDashboard> {
   final MockSentimentService _sentimentService = MockSentimentService();
   DateTime _focusedDay = DateTime.now();
   DateTime _selectedDay = DateTime.now();
+
+  int _selectedIndex = 0;
 
   List<JournalEntry> _entries = [];
   List<DomainScore> _lastDetectedIssues = [];
@@ -65,61 +69,109 @@ class _MainDashboardState extends State<MainDashboard> {
     }
   }
 
-  @override
-  Widget build(BuildContext context) {
+@override
+Widget build(BuildContext context) {
+  return Scaffold(
+    appBar: _selectedIndex == 0
+        ? AppBar(
+            title: const Text('MINDGAUGE'),
+            backgroundColor: AppColors.background,
+            foregroundColor: AppColors.secondary,
+            elevation: 0,
+            actions: [
+              IconButton(
+                icon: const Icon(Icons.account_circle, size: 32),
+                onPressed: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => EditProfileScreen(
+                        userProfile: widget.userProfile,
+                      ),
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(width: 8),
+            ],
+          )
+        : null,
+
+    body: IndexedStack(
+      index: _selectedIndex,
+      children: [
+        _buildHomeTab(),
+        const HappyCornerScreen(),
+        CheckInTab(
+          userProfile: widget.userProfile,
+          onCheckInComplete: (results) {
+            setState(() {
+              _lastDetectedIssues = results;
+              _selectedIndex = 3;
+            });
+          },
+        ),
+        const InsightsTab(),
+        ProfileTab(userProfile: widget.userProfile),
+      ],
+    ),
+
+    bottomNavigationBar: BottomNavigationBar(
+      currentIndex: _selectedIndex,
+      onTap: (index) {
+        setState(() {
+          _selectedIndex = index;
+        });
+      },
+      type: BottomNavigationBarType.fixed,
+      backgroundColor: AppColors.background,
+      selectedItemColor: AppColors.primary,
+      unselectedItemColor: AppColors.secondary.withOpacity(0.5),
+      showUnselectedLabels: true,
+      items: const [
+        BottomNavigationBarItem(
+          icon: Icon(Icons.home),
+          label: 'Home',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.auto_awesome),
+          label: 'Moments',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.health_and_safety),
+          label: 'Check-In',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.insights),
+          label: 'Insights',
+        ),
+        BottomNavigationBarItem(
+          icon: Icon(Icons.support_agent),
+          label: 'Support',
+        ),
+      ],
+    ),
+
+    floatingActionButton: _selectedIndex == 0
+        ? FloatingActionButton(
+            onPressed: () => _openJournalingScreen(DateTime.now()),
+            backgroundColor: AppColors.primary,
+            child: const Icon(Icons.add, color: Colors.white),
+          )
+        : null,
+  );
+}
+
+  Widget _buildHomeTab() {
     final JournalEntry? currentEntry = _entries
         .where((e) => e.date.isSameDay(_selectedDay))
         .cast<JournalEntry?>()
         .firstOrNull;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: const Text('MINDGAUGE'),
-        backgroundColor: AppColors.background,
-        foregroundColor: AppColors.secondary,
-        elevation: 0,
-        actions: [
-          CustomDrawerButton(
-            userProfile: widget.userProfile,
-            detectedIssues: _lastDetectedIssues,
-            journalEntries: _entries,
-          ),
-        ],
-      ),
-      body: SingleChildScrollView(
+    return SingleChildScrollView(
         padding: const EdgeInsets.symmetric(horizontal: 20.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // USER INFO CARD
-            Container(
-              padding: const EdgeInsets.all(16),
-              margin: const EdgeInsets.only(top: 10, bottom: 20),
-              decoration: BoxDecoration(
-                color: AppColors.cardColor,
-                borderRadius: BorderRadius.circular(15),
-                border: Border.all(color: AppColors.primary.withOpacity(0.5)),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    'Hello, ${widget.userProfile.name}!',
-                    style: const TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.bold,
-                      color: AppColors.secondary,
-                    ),
-                  ),
-                  const SizedBox(height: 5),
-                  Text(
-                    'Age: ${widget.userProfile.age} | Location: ${widget.userProfile.location}',
-                    style: const TextStyle(fontSize: 14, color: AppColors.text),
-                  ),
-                ],
-              ),
-            ),
-
             // --- CALENDAR SECTION ---
             const Text(
               'CALENDAR',
@@ -179,40 +231,10 @@ class _MainDashboardState extends State<MainDashboard> {
               onTap: () => _openJournalingScreen(_selectedDay),
             ),
             const SizedBox(height: 30),
-            Center(
-              child: StyledButton(
-                text: 'Start Symptom Check-In',
-                onPressed: () async {
-                  // Pass age from user profile
-                  final results = await Navigator.of(context)
-                      .push<List<DomainScore>>(
-                        MaterialPageRoute(
-                          builder: (context) => QuestionnaireScreen(
-                            userProfile: widget.userProfile,
-                          ),
-                        ),
-                      );
-
-                  if (results != null) {
-                    setState(() {
-                      _lastDetectedIssues = results;
-                    });
-                  }
-                },
-                color: AppColors.primary,
-                shadowColor: AppColors.primary.withOpacity(0.5),
-              ),
-            ),
             const SizedBox(height: 50),
           ],
         ),
-      ),
-      floatingActionButton: FloatingActionButton(
-        onPressed: () => _openJournalingScreen(DateTime.now()),
-        backgroundColor: AppColors.primary,
-        child: const Icon(Icons.add, color: Colors.white),
-      ),
-    );
+      );
   }
 
   void _goToPreviousMonth() {
@@ -496,191 +518,4 @@ class JournalSnippetCard extends StatelessWidget {
   }
 }
 
-class CustomDrawerButton extends StatefulWidget {
-  final UserProfile userProfile;
-  final List<DomainScore> detectedIssues;
-  final List<JournalEntry> journalEntries;
 
-  const CustomDrawerButton({
-    super.key,
-    required this.userProfile,
-    required this.detectedIssues,
-    required this.journalEntries,
-  });
-
-  @override
-  State<CustomDrawerButton> createState() => _CustomDrawerButtonState();
-}
-
-class _CustomDrawerButtonState extends State<CustomDrawerButton> {
-  OverlayEntry? _overlayEntry;
-
-  void _showOverlay(BuildContext context) {
-    if (_overlayEntry != null) {
-      _overlayEntry!.remove();
-      _overlayEntry = null;
-      return;
-    }
-
-    final RenderBox button = context.findRenderObject() as RenderBox;
-    final Offset offset = button.localToGlobal(Offset.zero);
-
-    _overlayEntry = OverlayEntry(
-      builder: (context) => Positioned(
-        top: offset.dy + button.size.height + 5,
-        right: 15,
-        child: Material(
-          color: Colors.transparent,
-          child: Container(
-            width: 200,
-            decoration: BoxDecoration(
-              color: AppColors.background,
-              borderRadius: BorderRadius.circular(10),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.2),
-                  blurRadius: 10,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                _DrawerButton(
-                  text: 'DETECTED ISSUE',
-                  color: AppColors.secondary,
-                  onTap: _hideOverlay,
-                  detectedIssues: widget.detectedIssues,
-                ),
-
-                _DrawerButton(
-                  text: 'RECOMMENDATIONS',
-                  color: AppColors.secondary.withOpacity(0.8),
-                  onTap: _hideOverlay,
-                  detectedIssues: widget.detectedIssues,
-                ),
-                _DrawerButton(
-                  text: 'RISK TRENDS',
-                  color: AppColors.secondary.withOpacity(0.9),
-                  onTap: _hideOverlay,
-                  journalEntries: widget.journalEntries,
-                ),
-                _DrawerButton(
-                  text: 'PROFESSIONALS',
-                  color: AppColors.secondary.withOpacity(0.7),
-                  onTap: _hideOverlay,
-                ),
-                _DrawerButton(
-                  text: 'INTERESTS',
-                  color: AppColors.secondary.withOpacity(0.85),
-                  onTap: _hideOverlay,
-                  userProfile: widget.userProfile,
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    );
-
-    Overlay.of(context).insert(_overlayEntry!);
-  }
-
-  void _hideOverlay() {
-    if (_overlayEntry != null) {
-      _overlayEntry!.remove();
-      _overlayEntry = null;
-    }
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return IconButton(
-      icon: const Icon(Icons.menu, color: AppColors.secondary),
-      onPressed: () => _showOverlay(context),
-    );
-  }
-}
-
-class _DrawerButton extends StatelessWidget {
-  final String text;
-  final Color color;
-  final VoidCallback onTap;
-  final List<DomainScore>? detectedIssues;
-  final List<JournalEntry>? journalEntries;
-  final UserProfile? userProfile;
-
-  const _DrawerButton({
-    required this.text,
-    required this.color,
-    required this.onTap,
-    this.detectedIssues,
-    this.journalEntries,
-    this.userProfile,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      // The fix: Add 'async' right here
-      onTap: () async {
-        onTap(); // This hides the overlay menu
-
-        if (text == 'DETECTED ISSUE') {
-          Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const DetectedIssueScreen()),
-          );
-        }
-
-        if (text == 'RECOMMENDATIONS') {
-          Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const RecommendationsScreen()),
-          );
-        }
-
-        if (text == 'RISK TRENDS') {
-          Navigator.of(
-            context,
-          ).push(MaterialPageRoute(builder: (_) => const RiskTrendsScreen()));
-        }
-
-        if (text == 'INTERESTS' && userProfile != null) {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (_) => InterestsScreen(userProfile: userProfile!),
-            ),
-          );
-        }
-
-        if (text == 'PROFESSIONALS') {
-          onTap(); // This closes the overlay menu immediately
-
-          // Navigate immediately without waiting for Firestore here
-          Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const ProfessionalsScreen()),
-          );
-        }
-      },
-      child: Container(
-        width: 180,
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-        margin: const EdgeInsets.all(5),
-        decoration: BoxDecoration(
-          color: color,
-          borderRadius: BorderRadius.circular(10),
-        ),
-        child: Center(
-          child: Text(
-            text,
-            style: const TextStyle(
-              color: Colors.white,
-              fontWeight: FontWeight.bold,
-              fontSize: 14,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-}
