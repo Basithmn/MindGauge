@@ -74,9 +74,34 @@ Widget build(BuildContext context) {
   return Scaffold(
     appBar: _selectedIndex == 0
         ? AppBar(
-            title: const Text('MINDGAUGE'),
-            backgroundColor: AppColors.background,
-            foregroundColor: AppColors.secondary,
+            title: Row(
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(15),
+                  child: Image.asset(
+                    'assets/mind_gauge_logo.jpeg',
+                    height: 32,
+                    width: 32,
+                    fit: BoxFit.cover,
+                  ),
+                ),
+                const SizedBox(width: 12),
+                const Expanded(
+                  child: Text(
+                    'MINDGAUGE',
+                    style: TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
+                      fontSize: 22,
+                      letterSpacing: 0.5,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ],
+            ),
+            backgroundColor: AppColors.secondary,
+            foregroundColor: Colors.white,
             elevation: 0,
             actions: [
               IconButton(
@@ -168,7 +193,7 @@ Widget build(BuildContext context) {
         .firstOrNull;
 
     return SingleChildScrollView(
-        padding: const EdgeInsets.symmetric(horizontal: 20.0),
+        padding: const EdgeInsets.only(left: 20.0, right: 20.0, top: 24.0, bottom: 20.0),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
