@@ -10,61 +10,56 @@ class MiniSudokuGameScreen extends StatefulWidget {
 }
 
 class _MiniSudokuGameScreenState extends State<MiniSudokuGameScreen> {
+  // These are valid, solvable 4x4 Sudoku puzzles
   static final List<List<List<int>>> _dailyPuzzles = [
-    [ // Day 1
-      [1, 0, 0, 4],
-      [0, 4, 1, 0],
-      [0, 1, 4, 0],
-      [4, 0, 0, 1],
+    [ // Puzzle 1
+      [0, 0, 0, 4],
+      [0, 0, 3, 0],
+      [0, 1, 0, 0],
+      [2, 0, 0, 0],
     ],
-    [ // Day 2
-      [3, 0, 0, 1],
-      [0, 2, 4, 0],
-      [0, 4, 2, 0],
-      [1, 0, 0, 3],
+    [ // Puzzle 2
+      [1, 0, 0, 0],
+      [0, 0, 2, 0],
+      [0, 3, 0, 0],
+      [0, 0, 0, 4],
     ],
-    [ // Day 3
-      [0, 4, 2, 0],
-      [2, 0, 0, 4],
-      [4, 0, 0, 2],
-      [0, 2, 4, 0],
+    [ // Puzzle 3
+      [0, 0, 1, 0],
+      [4, 0, 0, 0],
+      [0, 0, 0, 2],
+      [0, 3, 0, 0],
     ],
-    [ // Day 4
-      [0, 3, 0, 1],
-      [1, 0, 3, 0],
-      [0, 1, 0, 2],
-      [2, 0, 1, 0], // Actually 4x4 needs valid combinations. These are placeholders but 4x4 allows easy bruteforcing.
+    [ // Puzzle 4
+      [0, 1, 0, 0],
+      [0, 0, 2, 0],
+      [0, 4, 0, 0],
+      [0, 0, 3, 0],
     ],
   ];
 
   late List<List<int>> initialGrid;
   late List<List<int>> grid;
-
   @override
   void initState() {
     super.initState();
     _resetGame();
   }
-
   void _resetGame() {
+    // Select puzzle based on day
     int dayOfYear = int.parse(DateFormat("D").format(DateTime.now()));
     int index = dayOfYear % _dailyPuzzles.length;
-    // ensure puzzle 3 is valid (Day 4)
-    if (index == 3) {
-      initialGrid = [
-        [4, 0, 0, 2],
-        [0, 1, 4, 0],
-        [0, 4, 2, 0],
-        [2, 0, 0, 4],
-      ];
-    } else {
-      initialGrid = _dailyPuzzles[index];
-    }
     
+    // Crucial: Create a deep copy of the template
+    initialGrid = List.generate(4, (r) => List.from(_dailyPuzzles[index][r]));
     grid = List.generate(4, (r) => List.from(initialGrid[r]));
+    
     setState(() {});
   }
 
+  
+
+  
   void _onCellTapped(int row, int col) {
     // Only mutable if it was 0 initially
     if (initialGrid[row][col] != 0) return;
