@@ -1,12 +1,15 @@
 import pandas as pd
 from sklearn.preprocessing import LabelEncoder
 from sklearn.model_selection import train_test_split
+from sklearn.metrics import classification_report, accuracy_score, f1_score
 import lightgbm as lgb
 import joblib
 from lightgbm import early_stopping
 import numpy as np
 import re
 import math
+from sklearn.metrics import confusion_matrix
+
 
 # ==============================================================================
 # 1. FINAL DATA PREPARATION FUNCTION (Stable and uses Name-Based Reverse Scoring)
@@ -174,3 +177,55 @@ def train_lgbm_model(file_path, model_output_path, label_encoder_path, reverse_c
     # --- Feature Importance ---
     importance = pd.DataFrame({"feature": X_aligned.columns, "importance": model.feature_importance()})
     print("\nFeature Importance:\n", importance.sort_values(by="importance", ascending=False))
+
+    # --- Metrics Evaluation ---
+    print("\nEvaluating Model Metrics on Test Set...")
+    y_pred_proba = model.predict(X_test)
+    
+    # LightGBM predict returns probabilities for multiclass, need to get the argmax
+    if len(y_pred_proba.shape) > 1 and y_pred_proba.shape[1] > 1:
+        y_pred = np.argmax(y_pred_proba, axis=1)
+    else:
+        # For binary classification or if it returns raw classes
+        y_pred = (y_pred_proba > 0.5).astype(int)
+    cm = confusion_matrix(y_test, y_pred)
+
+    print("\nConfusion Matrix:")
+    print(cm)
+
+    print("\nPer-Class Metrics:")
+
+    for i, label in enumerate(le.classes_):
+
+        TP = cm[i, i]
+        FP = cm[:, i].sum() - TP
+        FN = cm[i, :].sum() - TP
+        TN = cm.sum() - (TP + FP + FN)
+
+        precision = TP / (TP + FP) if (TP + FP) > 0 else 0
+        recall = TP / (TP + FN) if (TP + FN) > 0 else 0
+        specificity = TN / (TN + FP) if (TN + FP) > 0 else 0
+        fpr = FP / (FP + TN) if (FP + TN) > 0 else 0
+
+        print(f"\nClass: {label}")
+        print(f"TP: {TP}")
+        print(f"FP: {FP}")
+        print(f"FN: {FN}")
+        print(f"TN: {TN}")
+        print(f"Precision: {precision:.4f}")
+        print(f"Recall (Sensitivity): {recall:.4f}")
+        print(f"Specificity: {specificity:.4f}")
+        print(f"False Positive Rate: {fpr:.4f}")
+    acc = accuracy_score(y_test, y_pred)
+    f1 = f1_score(y_test, y_pred, average='weighted')
+    
+    try:
+        report = classification_report(y_test, y_pred, target_names=le.classes_.astype(str))
+    except Exception as e:
+        report = f"Could not generate detailed report: {e}"
+    print(f"\n--- MODEL EVALUATION SUMMARY ---")
+    
+    print(f"Accuracy: {acc:.4f}")
+    print(f"F1 Score (Weighted): {f1:.4f}")
+    print("\nClassification Report:\n", report)
+    print("--------------------------------\n")
