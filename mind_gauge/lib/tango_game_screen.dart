@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'ui_components.dart';
 
 class TangoGameScreen extends StatefulWidget {
@@ -12,15 +13,34 @@ class _TangoGameScreenState extends State<TangoGameScreen> {
   final int gridSize = 6;
   
   // 0: empty, 1: blue, 2: yellow
-  final List<List<int>> initialGrid = [
-    [0, 1, 0, 0, 2, 0],
-    [0, 1, 0, 1, 0, 2],
-    [2, 0, 0, 1, 0, 0],
-    [0, 2, 2, 0, 0, 1],
-    [0, 0, 0, 2, 2, 0],
-    [1, 0, 1, 0, 0, 0],
+  static final List<List<List<int>>> _dailyPuzzles = [
+    [ // Day 1
+      [0, 1, 0, 0, 2, 0],
+      [0, 1, 0, 1, 0, 2],
+      [2, 0, 0, 1, 0, 0],
+      [0, 2, 2, 0, 0, 1],
+      [0, 0, 0, 2, 2, 0],
+      [1, 0, 1, 0, 0, 0],
+    ],
+    [ // Day 2
+      [0, 0, 1, 0, 0, 2],
+      [0, 2, 0, 0, 2, 0],
+      [1, 0, 0, 2, 0, 0],
+      [0, 0, 1, 0, 0, 1],
+      [0, 1, 0, 0, 1, 0],
+      [2, 0, 0, 1, 0, 0],
+    ],
+    [ // Day 3
+      [0, 2, 0, 1, 0, 0],
+      [0, 0, 1, 0, 0, 2],
+      [2, 0, 0, 2, 0, 0],
+      [0, 0, 2, 0, 0, 1],
+      [0, 1, 0, 0, 1, 0],
+      [1, 0, 0, 1, 0, 0],
+    ],
   ];
 
+  late List<List<int>> initialGrid;
   late List<List<int>> grid;
 
   @override
@@ -30,6 +50,9 @@ class _TangoGameScreenState extends State<TangoGameScreen> {
   }
 
   void _resetGame() {
+    int dayOfYear = int.parse(DateFormat("D").format(DateTime.now()));
+    int index = dayOfYear % _dailyPuzzles.length;
+    initialGrid = _dailyPuzzles[index];
     grid = List.generate(gridSize, (r) => List.from(initialGrid[r]));
     setState(() {});
   }
@@ -107,7 +130,7 @@ class _TangoGameScreenState extends State<TangoGameScreen> {
       barrierDismissible: false,
       builder: (context) => AlertDialog(
         title: const Text('Puzzle Solved!'),
-        content: const Text('You successfully found the Tango patterns.'),
+        content: const Text('You successfully found the Tango patterns and completed today\'s challenge!'),
         actions: [
           TextButton(
             onPressed: () {

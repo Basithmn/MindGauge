@@ -173,6 +173,21 @@ class FirebaseUserService {
         .add(assessmentData);
   }
 
+  Future<Map<String, dynamic>?> getLatestAssessment(String userId) async {
+    final querySnapshot = await _firestore
+        .collection('users')
+        .doc(userId)
+        .collection('assessments')
+        .orderBy('timestamp', descending: true)
+        .limit(1)
+        .get();
+
+    if (querySnapshot.docs.isNotEmpty) {
+      return querySnapshot.docs.first.data();
+    }
+    return null;
+  }
+
   Future<void> saveLevel2Result({
     required String userId,
     required String domainName,
