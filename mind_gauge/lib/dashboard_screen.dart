@@ -17,7 +17,13 @@ import 'edit_profile_screen.dart';
 
 class MainDashboard extends StatefulWidget {
   final UserProfile userProfile;
-  const MainDashboard({super.key, required this.userProfile});
+  final int initialIndex;
+
+  const MainDashboard({
+    super.key,
+    required this.userProfile,
+    this.initialIndex = 0,
+  });
 
   @override
   State<MainDashboard> createState() => _MainDashboardState();
@@ -28,7 +34,7 @@ class _MainDashboardState extends State<MainDashboard> {
   DateTime _focusedDay = DateTime.now();
   DateTime _selectedDay = DateTime.now();
 
-  int _selectedIndex = 0;
+  late int _selectedIndex;
 
   List<JournalEntry> _entries = [];
   List<DomainScore> _lastDetectedIssues = [];
@@ -36,6 +42,7 @@ class _MainDashboardState extends State<MainDashboard> {
   @override
   void initState() {
     super.initState();
+    _selectedIndex = widget.initialIndex;
     _loadEntries();
   }
 

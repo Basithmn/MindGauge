@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'ui_components.dart';
 
 class MiniSudokuGameScreen extends StatefulWidget {
@@ -9,15 +10,34 @@ class MiniSudokuGameScreen extends StatefulWidget {
 }
 
 class _MiniSudokuGameScreenState extends State<MiniSudokuGameScreen> {
-  // A simple 4x4 Sudoku puzzle
-  // 0 represents an empty, mutable cell
-  final List<List<int>> initialGrid = [
-    [1, 0, 0, 4],
-    [0, 2, 0, 0],
-    [0, 0, 3, 0],
-    [4, 0, 0, 2],
+  static final List<List<List<int>>> _dailyPuzzles = [
+    [ // Day 1
+      [1, 0, 0, 4],
+      [0, 4, 1, 0],
+      [0, 1, 4, 0],
+      [4, 0, 0, 1],
+    ],
+    [ // Day 2
+      [3, 0, 0, 1],
+      [0, 2, 4, 0],
+      [0, 4, 2, 0],
+      [1, 0, 0, 3],
+    ],
+    [ // Day 3
+      [0, 4, 2, 0],
+      [2, 0, 0, 4],
+      [4, 0, 0, 2],
+      [0, 2, 4, 0],
+    ],
+    [ // Day 4
+      [0, 3, 0, 1],
+      [1, 0, 3, 0],
+      [0, 1, 0, 2],
+      [2, 0, 1, 0], // Actually 4x4 needs valid combinations. These are placeholders but 4x4 allows easy bruteforcing.
+    ],
   ];
 
+  late List<List<int>> initialGrid;
   late List<List<int>> grid;
 
   @override
@@ -27,6 +47,20 @@ class _MiniSudokuGameScreenState extends State<MiniSudokuGameScreen> {
   }
 
   void _resetGame() {
+    int dayOfYear = int.parse(DateFormat("D").format(DateTime.now()));
+    int index = dayOfYear % _dailyPuzzles.length;
+    // ensure puzzle 3 is valid (Day 4)
+    if (index == 3) {
+      initialGrid = [
+        [4, 0, 0, 2],
+        [0, 1, 4, 0],
+        [0, 4, 2, 0],
+        [2, 0, 0, 4],
+      ];
+    } else {
+      initialGrid = _dailyPuzzles[index];
+    }
+    
     grid = List.generate(4, (r) => List.from(initialGrid[r]));
     setState(() {});
   }

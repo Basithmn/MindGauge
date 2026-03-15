@@ -1,14 +1,21 @@
 import 'dart:convert';
 import 'package:camera/camera.dart';
+import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 import 'package:permission_handler/permission_handler.dart';
+import 'package:flutter_image_compress/flutter_image_compress.dart';
 class CameraService {
   CameraController? _controller;
   List<CameraDescription>? _cameras;
   bool _isInitialized = false;
-  
-  // API Endpoint (Use 10.0.2.2 for Android Emulator, localhost/127.0.0.1 for Desktop/Web)
-  final String _apiBaseUrl = 'http://127.0.0.1:5000'; 
+  bool _sending = false; 
+  // API Endpoint Route mapping based on platform
+  String get _apiBaseUrl {
+    if (kIsWeb) {
+      return 'http://127.0.0.1:5000';
+    }
+    return 'http://172.16.7.248:5000';
+  }
 
   bool get isInitialized => _isInitialized;
   CameraController? get controller => _controller; // Expose controller for Preview widget
@@ -65,32 +72,50 @@ class CameraService {
   }
 
   Future<Map<String, dynamic>?> analyzeExpression(XFile imageFile) async {
+    if (_sending) return null;
+    _sending = true;
+
     try {
       final bytes = await imageFile.readAsBytes();
-      final String base64Image = base64Encode(bytes);
+      
+      // Compress image significantly before sending to ML API
+      List<int> compressedBytes = bytes;
+      if (!kIsWeb) {
+        try {
+          compressedBytes = await FlutterImageCompress.compressWithList(
+            bytes,
+            minWidth: 480,
+            minHeight: 480,
+            quality: 70,
+          );
+        } catch (e) {
+          print("Compression failed, falling back to original: $e");
+        }
+      }
+
+      final String base64Image = base64Encode(compressedBytes);
 
       final response = await http.post(
         Uri.parse('$_apiBaseUrl/analyze_face'),
         headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
-          'image': base64Image,
-        }),
-      );
+        body: jsonEncode({'image': base64Image}),
+      ).timeout(const Duration(seconds: 5));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        print("Emotion Analysis: ${data['dominant_emotion']} (${data['score']})");
+        print("Emotion: ${data['dominant_emotion']}");
         return data;
       } else {
-        print("API Error: ${response.statusCode} - ${response.body}");
-        return null; // Return null on error
+        print("API Error: ${response.statusCode}");
       }
     } catch (e) {
       print("Error sending image to API: $e");
-      return null;
+    } finally {
+      _sending = false;   // ← THIS IS CRITICAL
     }
-  }
 
+    return null;
+  }
   Future<void> startVideoRecording() async {
     if (!_isInitialized || _controller == null) return;
     try {
@@ -126,7 +151,7 @@ class CameraService {
         body: jsonEncode({
           'video': base64Video,
         }),
-      );
+      ).timeout(const Duration(seconds: 15)); // A bit longer for videos if used again
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
@@ -151,7 +176,7 @@ class CameraService {
           'questionnaire_results': questionnaireResults,
           'visual_sentiment': visualSentiment,
         }),
-      );
+      ).timeout(const Duration(seconds: 10));
 
       if (response.statusCode == 200) {
         return jsonDecode(response.body);
@@ -165,8 +190,17 @@ class CameraService {
     }
   }
 
-  void dispose() {
-    _controller?.dispose();
-    _isInitialized = false;
+  Future<void> dispose() async {
+    try {
+      if (_controller != null) {
+        await _controller!.dispose();
+        _controller = null;
+      }
+    } catch (e) {
+      print("Error disposing camera: $e");
+    } finally {
+      _isInitialized = false;
+      _cameras = null; // Release resources
+    }
   }
 }

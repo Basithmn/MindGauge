@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'ui_components.dart';
 
 class ZipGameScreen extends StatefulWidget {
@@ -11,13 +12,28 @@ class ZipGameScreen extends StatefulWidget {
 class _ZipGameScreenState extends State<ZipGameScreen> {
   final int gridSize = 5;
   
-  // Game puzzle definition: Endpoints to connect
-  final Map<Color, List<Offset>> endpoints = {
-    Colors.red: [const Offset(0, 0), const Offset(4, 4)],
-    Colors.blue: [const Offset(0, 4), const Offset(4, 0)],
-    Colors.green: [const Offset(2, 0), const Offset(2, 4)],
-    Colors.orange: [const Offset(0, 2), const Offset(4, 2)],
-  };
+  static final List<Map<Color, List<Offset>>> _dailyPuzzles = [
+    { // Day 1
+      Colors.red: [const Offset(0, 0), const Offset(4, 4)],
+      Colors.blue: [const Offset(0, 4), const Offset(4, 0)],
+      Colors.green: [const Offset(2, 0), const Offset(2, 4)],
+      Colors.orange: [const Offset(0, 2), const Offset(4, 2)],
+    },
+    { // Day 2
+      Colors.red: [const Offset(0, 0), const Offset(3, 3)],
+      Colors.blue: [const Offset(1, 0), const Offset(4, 4)],
+      Colors.green: [const Offset(0, 4), const Offset(4, 0)],
+      Colors.orange: [const Offset(0, 2), const Offset(4, 2)],
+    },
+    { // Day 3
+      Colors.red: [const Offset(0, 0), const Offset(4, 0)],
+      Colors.blue: [const Offset(0, 4), const Offset(4, 4)],
+      Colors.green: [const Offset(0, 2), const Offset(4, 2)],
+      Colors.orange: [const Offset(2, 0), const Offset(2, 4)],
+    },
+  ];
+
+  late Map<Color, List<Offset>> endpoints;
 
   late List<List<Color?>> grid;
   Color? activeColor;
@@ -30,6 +46,10 @@ class _ZipGameScreenState extends State<ZipGameScreen> {
   }
 
   void _resetGame() {
+    int dayOfYear = int.parse(DateFormat("D").format(DateTime.now()));
+    int index = dayOfYear % _dailyPuzzles.length;
+    endpoints = _dailyPuzzles[index];
+    
     grid = List.generate(gridSize, (_) => List.filled(gridSize, null));
     // Place endpoints on the grid
     for (var entry in endpoints.entries) {
@@ -111,7 +131,7 @@ class _ZipGameScreenState extends State<ZipGameScreen> {
       barrierDismissible: false,
       builder: (context) => AlertDialog(
         title: const Text('Puzzle Solved!'),
-        content: const Text('You successfully navigated the grid.'),
+        content: const Text('You successfully navigated the grid and completed today\'s challenge!'),
         actions: [
           TextButton(
             onPressed: () {
