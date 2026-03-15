@@ -84,11 +84,11 @@ Widget build(BuildContext context) {
             title: Row(
               children: [
                 ClipRRect(
-                  borderRadius: BorderRadius.circular(15),
+                  borderRadius: BorderRadius.circular(20),
                   child: Image.asset(
                     'assets/mind_gauge_logo.jpeg',
-                    height: 32,
-                    width: 32,
+                    height: 36,
+                    width: 36,
                     fit: BoxFit.cover,
                   ),
                 ),

@@ -100,16 +100,11 @@ class HappyCornerScreen extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(15),
       child: Container(
-        padding: const EdgeInsets.symmetric(
-          vertical: 16,
-          horizontal: 20,
-        ),
+        padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 20),
         decoration: BoxDecoration(
           color: AppColors.cardColor,
           borderRadius: BorderRadius.circular(15),
-          border: Border.all(
-            color: AppColors.primary.withOpacity(0.5),
-          ),
+          border: Border.all(color: AppColors.primary.withOpacity(0.5)),
           boxShadow: [
             BoxShadow(
               color: AppColors.primary.withOpacity(0.1),
@@ -131,11 +126,7 @@ class HappyCornerScreen extends StatelessWidget {
                 ),
               ),
             ),
-            Icon(
-              icon,
-              color: AppColors.primary,
-              size: 32,
-            ),
+            Icon(icon, color: AppColors.primary, size: 32),
           ],
         ),
       ),
@@ -145,7 +136,9 @@ class HappyCornerScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final user = FirebaseAuth.instance.currentUser;
-    final String currentDateStr = DateFormat('EEEE, MMM d').format(DateTime.now());
+    final String currentDateStr = DateFormat(
+      'EEEE, MMM d',
+    ).format(DateTime.now());
 
     if (user == null) {
       return Scaffold(
@@ -188,171 +181,12 @@ class HappyCornerScreen extends StatelessWidget {
           return ListView(
             padding: const EdgeInsets.all(16),
             children: [
-              // --- RELAXATION GAMES SECTION ---
-              const Text(
-                'RELAXATION GAMES',
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: AppColors.secondary,
-                ),
-              ),
-              const SizedBox(height: 15),
-              _GameCard(
-                title: 'Memory Game',
-                issueNumber: '',
-                date: currentDateStr,
-                description: 'A relaxing puzzle to ease your mind and find focus.',
-                buttonColor: const Color(0xFF6B4C9A),
-                headerGradient: const LinearGradient(
-                  colors: [Color(0xFF9D84B7), Color(0xFF6B4C9A)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                iconWidget: Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFE4D9F2),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.black87, width: 2),
-                  ),
-                  child: const Center(
-                    child: Icon(Icons.extension, color: Color(0xFF6B4C9A), size: 36),
-                  ),
-                ),
-                onSolve: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(builder: (context) => const PuzzleGameScreen()),
-                  );
-                },
-              ),
-              const SizedBox(height: 16),
-              _GameCard(
-                title: 'Zip',
-                issueNumber: '',
-                date: currentDateStr,
-                description: 'Use your pathfinding skills to move through the grid.',
-                buttonColor: const Color(0xFFE56B24),
-                headerGradient: const LinearGradient(
-                  colors: [Color(0xFFF6A05A), Color(0xFFF9603A)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                iconWidget: Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF9A873),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.black87, width: 2),
-                  ),
-                  child: Center(
-                    child: Text(
-                      'Z',
-                      style: TextStyle(
-                        fontSize: 32,
-                        fontWeight: FontWeight.w900,
-                        color: Colors.white,
-                        shadows: [Shadow(color: Colors.black54, blurRadius: 2, offset: Offset(1, 1))],
-                      ),
-                    ),
-                  ),
-                ),
-                onSolve: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(builder: (context) => const ZipGameScreen()),
-                  );
-                },
-              ),
-              const SizedBox(height: 16),
-              _GameCard(
-                title: 'Mini Sudoku',
-                issueNumber: '',
-                date: currentDateStr,
-                description: 'Good for fans of the classic Sudoku puzzles.',
-                buttonColor: const Color(0xFF3B9B62),
-                headerGradient: const LinearGradient(
-                  colors: [Color(0xFFE0F2E9), Color(0xFFD4ECD8)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                iconWidget: Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFE5F5EA),
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.black87, width: 2),
-                  ),
-                  child: const Center(
-                    child: Icon(Icons.grid_3x3, color: Color(0xFF3B9B62), size: 36),
-                  ),
-                ),
-                onSolve: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(builder: (context) => const MiniSudokuGameScreen()),
-                  );
-                },
-              ),
-              const SizedBox(height: 16),
-              _GameCard(
-                title: 'Tango',
-                issueNumber: '',
-                date: currentDateStr,
-                description: 'Use your reasoning skills to fill every cell.',
-                buttonColor: const Color(0xFF4C668A),
-                headerGradient: const LinearGradient(
-                  colors: [Color(0xFFFDE8A5), Color(0xFFA5C5F2)],
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                ),
-                iconWidget: Container(
-                  width: 48,
-                  height: 48,
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.black87, width: 2),
-                  ),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          children: [
-                            Expanded(child: Container(color: const Color(0xFFA5C5F2))),
-                            Expanded(child: Container(color: Colors.white)),
-                          ],
-                        ),
-                      ),
-                      Expanded(
-                        child: Column(
-                          children: [
-                            Expanded(child: Container(color: Colors.white)),
-                            Expanded(child: Container(color: const Color(0xFFFCAE3D))),
-                          ],
-                        ),
-                      )
-                    ],
-                  ),
-                ),
-                onSolve: () {
-                  Navigator.of(context).push(
-                    MaterialPageRoute(builder: (context) => const TangoGameScreen()),
-                  );
-                },
-              ),
-              const SizedBox(height: 30),
-
-              // --- PHOTOS SECTION ---
-              PhotosSection(
-                initialPhotos: photos,
-                isReadOnly: true,
-              ),
+              // --- 1. PHOTOS SECTION ---
+              PhotosSection(initialPhotos: photos, isReadOnly: true),
 
               const SizedBox(height: 30),
 
-              // --- PERSONALIZED RELIEF SECTION (INTERESTS) ---
+              // --- 2. PERSONALIZED RELIEF SECTION (INTERESTS) ---
               if (interests.isNotEmpty) ...[
                 const Text(
                   'PERSONALIZED RELIEF',
@@ -471,8 +305,192 @@ class HappyCornerScreen extends StatelessWidget {
                     );
                   },
                 ),
-                const SizedBox(height: 20),
+                const SizedBox(height: 30),
               ],
+
+              // --- 3. RELAXATION GAMES SECTION ---
+              const Text(
+                'RELAXATION GAMES',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.bold,
+                  color: AppColors.secondary,
+                ),
+              ),
+              const SizedBox(height: 15),
+              _GameCard(
+                title: 'Matching Cards',
+                issueNumber: '',
+                date: currentDateStr,
+                description:
+                    'A relaxing puzzle to ease your mind and find focus.',
+                buttonColor: const Color(0xFF6B4C9A),
+                headerGradient: const LinearGradient(
+                  colors: [Color(0xFF9D84B7), Color(0xFF6B4C9A)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                iconWidget: Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE4D9F2),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.black87, width: 2),
+                  ),
+                  child: const Center(
+                    child: Icon(
+                      Icons.extension,
+                      color: Color(0xFF6B4C9A),
+                      size: 36,
+                    ),
+                  ),
+                ),
+                onSolve: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => const PuzzleGameScreen(),
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 16),
+              _GameCard(
+                title: 'Zip',
+                issueNumber: '',
+                date: currentDateStr,
+                description:
+                    'Use your pathfinding skills to move through the grid.',
+                buttonColor: const Color(0xFFE56B24),
+                headerGradient: const LinearGradient(
+                  colors: [Color(0xFFF6A05A), Color(0xFFF9603A)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                iconWidget: Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF9A873),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.black87, width: 2),
+                  ),
+                  child: Center(
+                    child: Text(
+                      'Z',
+                      style: TextStyle(
+                        fontSize: 32,
+                        fontWeight: FontWeight.w900,
+                        color: Colors.white,
+                        shadows: [
+                          Shadow(
+                            color: Colors.black54,
+                            blurRadius: 2,
+                            offset: Offset(1, 1),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+                onSolve: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => const ZipGameScreen(),
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 16),
+              _GameCard(
+                title: 'Mini Sudoku',
+                issueNumber: '',
+                date: currentDateStr,
+                description: 'Good for fans of the classic Sudoku puzzles.',
+                buttonColor: const Color(0xFF3B9B62),
+                headerGradient: const LinearGradient(
+                  colors: [Color(0xFFE0F2E9), Color(0xFFD4ECD8)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                iconWidget: Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFE5F5EA),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.black87, width: 2),
+                  ),
+                  child: const Center(
+                    child: Icon(
+                      Icons.grid_3x3,
+                      color: Color(0xFF3B9B62),
+                      size: 36,
+                    ),
+                  ),
+                ),
+                onSolve: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => const MiniSudokuGameScreen(),
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 16),
+              _GameCard(
+                title: 'Tango',
+                issueNumber: '',
+                date: currentDateStr,
+                description: 'Use your reasoning skills to fill every cell.',
+                buttonColor: const Color(0xFF4C668A),
+                headerGradient: const LinearGradient(
+                  colors: [Color(0xFFFDE8A5), Color(0xFFA5C5F2)],
+                  begin: Alignment.topLeft,
+                  end: Alignment.bottomRight,
+                ),
+                iconWidget: Container(
+                  width: 48,
+                  height: 48,
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.black87, width: 2),
+                  ),
+                  child: Row(
+                    children: [
+                      Expanded(
+                        child: Column(
+                          children: [
+                            Expanded(
+                              child: Container(color: const Color(0xFFA5C5F2)),
+                            ),
+                            Expanded(child: Container(color: Colors.white)),
+                          ],
+                        ),
+                      ),
+                      Expanded(
+                        child: Column(
+                          children: [
+                            Expanded(child: Container(color: Colors.white)),
+                            Expanded(
+                              child: Container(color: const Color(0xFFFCAE3D)),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                onSolve: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (context) => const TangoGameScreen(),
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 20),
             ],
           );
         },
@@ -549,7 +567,10 @@ class _GameCard extends StatelessWidget {
                       ),
                     ],
                   ),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
                   child: Row(
                     children: [
                       iconWidget,
@@ -563,7 +584,7 @@ class _GameCard extends StatelessWidget {
                                 Text(
                                   title,
                                   style: const TextStyle(
-                                    fontSize: 18,
+                                    fontSize: 15,
                                     fontWeight: FontWeight.w900,
                                     color: Colors.black87,
                                   ),
@@ -598,12 +619,18 @@ class _GameCard extends StatelessWidget {
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(20),
                           ),
-                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 8,
+                          ),
                           elevation: 0,
                         ),
                         child: const Text(
                           'Solve',
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
                         ),
                       ),
                     ],
@@ -617,10 +644,7 @@ class _GameCard extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
             child: Text(
               description,
-              style: const TextStyle(
-                fontSize: 14,
-                color: Colors.black87,
-              ),
+              style: const TextStyle(fontSize: 14, color: Colors.black87),
             ),
           ),
         ],

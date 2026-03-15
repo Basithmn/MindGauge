@@ -90,24 +90,49 @@ class _InterestsSectionState extends State<InterestsSection> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Wrap(
-                spacing: 8.0,
-                runSpacing: 4.0,
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: _interests.map((interest) {
-                  return Chip(
-                    label: Text(
-                      interest,
-                      style: const TextStyle(color: Colors.white),
-                    ),
-                    backgroundColor: AppColors.secondary,
-                    deleteIcon: const Icon(
-                      Icons.close,
-                      size: 18,
-                      color: Colors.white,
-                    ),
-                    onDeleted: () => _removeInterest(interest),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(20),
+                  return Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 4.0),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                        vertical: 8,
+                      ),
+                      decoration: BoxDecoration(
+                        color: AppColors.secondary,
+                        borderRadius: BorderRadius.circular(20),
+                      ),
+                      child: Row(
+                        children: [
+                          const Icon(
+                            Icons.circle,
+                            size: 8,
+                            color: Colors.white,
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Text(
+                              interest,
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontSize: 16,
+                              ),
+                            ),
+                          ),
+                          IconButton(
+                            icon: const Icon(
+                              Icons.close,
+                              size: 18,
+                              color: Colors.white,
+                            ),
+                            padding: EdgeInsets.zero,
+                            constraints: const BoxConstraints(),
+                            onPressed: () => _removeInterest(interest),
+                          ),
+                        ],
+                      ),
                     ),
                   );
                 }).toList(),
@@ -146,7 +171,7 @@ class _InterestsSectionState extends State<InterestsSection> {
                         controller: controller,
                         focusNode: focusNode,
                         decoration: InputDecoration(
-                          hintText: 'Add an interest...',
+                          hintText: 'Add an interest',
                           suffixIcon: IconButton(
                             icon: const Icon(
                               Icons.add_circle,

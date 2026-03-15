@@ -66,16 +66,28 @@ class _PhotosSectionState extends State<PhotosSection> {
           child: Wrap(
             children: <Widget>[
               ListTile(
-                leading: const Icon(Icons.photo_library, color: AppColors.primary),
-                title: const Text('Photo Library', style: TextStyle(color: AppColors.text)),
+                leading: const Icon(
+                  Icons.photo_library,
+                  color: AppColors.primary,
+                ),
+                title: const Text(
+                  'Photo Library',
+                  style: TextStyle(color: AppColors.text),
+                ),
                 onTap: () {
                   _pickImage(ImageSource.gallery);
                   Navigator.of(context).pop();
                 },
               ),
               ListTile(
-                leading: const Icon(Icons.photo_camera, color: AppColors.primary),
-                title: const Text('Camera', style: TextStyle(color: AppColors.text)),
+                leading: const Icon(
+                  Icons.photo_camera,
+                  color: AppColors.primary,
+                ),
+                title: const Text(
+                  'Camera',
+                  style: TextStyle(color: AppColors.text),
+                ),
                 onTap: () {
                   _pickImage(ImageSource.camera);
                   Navigator.of(context).pop();
@@ -113,63 +125,19 @@ class _PhotosSectionState extends State<PhotosSection> {
             children: [
               if (_photos.isEmpty)
                 Padding(
-                   padding: const EdgeInsets.symmetric(vertical: 10.0),
-                   child: Text(
-                     widget.isReadOnly 
+                  padding: const EdgeInsets.symmetric(vertical: 10.0),
+                  child: Text(
+                    widget.isReadOnly
                         ? 'No personal photos added yet. Add them in Interests.'
                         : 'Add personal photos that remind you of good times!',
-                     style: const TextStyle(
-                       fontStyle: FontStyle.italic,
-                       color: AppColors.text,
-                     ),
-                   ),
-                 )
-              else
-                GridView.builder(
-                  shrinkWrap: true,
-                  physics: const NeverScrollableScrollPhysics(),
-                  gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                    crossAxisCount: 3,
-                    crossAxisSpacing: 8,
-                    mainAxisSpacing: 8,
+                    style: const TextStyle(
+                      fontStyle: FontStyle.italic,
+                      color: AppColors.text,
+                    ),
                   ),
-                  itemCount: _photos.length,
-                  itemBuilder: (context, index) {
-                    final photoPath = _photos[index];
-                    return Stack(
-                      children: [
-                        ClipRRect(
-                          borderRadius: BorderRadius.circular(10),
-                          child: Image.file(
-                            File(photoPath),
-                            fit: BoxFit.cover,
-                            width: double.infinity,
-                            height: double.infinity,
-                          ),
-                        ),
-                        if (!widget.isReadOnly)
-                          Positioned(
-                            top: 2,
-                            right: 2,
-                            child: GestureDetector(
-                              onTap: () => _removePhoto(photoPath),
-                              child: Container(
-                                decoration: const BoxDecoration(
-                                  color: Colors.black54,
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(
-                                  Icons.close,
-                                  size: 18,
-                                  color: Colors.white,
-                                ),
-                              ),
-                            ),
-                          ),
-                      ],
-                    );
-                  },
-                ),
+                )
+              else
+                _buildCollage(context),
               if (!widget.isReadOnly)
                 Column(
                   children: [
@@ -195,6 +163,279 @@ class _PhotosSectionState extends State<PhotosSection> {
           ),
         ),
       ],
+    );
+  }
+
+  // --- COLLAGE LOGIC ---
+
+  Widget _buildCollage(BuildContext context) {
+    const double collageHeight = 250.0;
+
+    return GestureDetector(
+      onTap: () {
+        // Open the full collage expanded view
+        Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => FullScreenCollageScreen(
+              photos: _photos,
+              isReadOnly: widget.isReadOnly,
+            ),
+          ),
+        );
+      },
+      child: Container(
+        height: collageHeight,
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(15),
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 10,
+              offset: const Offset(0, 5),
+            ),
+          ],
+        ),
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(15),
+          child: _getCollageLayout(),
+        ),
+      ),
+    );
+  }
+
+  Widget _getCollageLayout() {
+    int count = _photos.length;
+    if (count == 1) {
+      return _buildPhotoTile(_photos[0], 0);
+    } else if (count == 2) {
+      return Row(
+        children: [
+          Expanded(child: _buildPhotoTile(_photos[0], 0)),
+          const SizedBox(width: 4),
+          Expanded(child: _buildPhotoTile(_photos[1], 1)),
+        ],
+      );
+    } else if (count == 3) {
+      return Row(
+        children: [
+          Expanded(flex: 2, child: _buildPhotoTile(_photos[0], 0)),
+          const SizedBox(width: 4),
+          Expanded(
+            flex: 1,
+            child: Column(
+              children: [
+                Expanded(child: _buildPhotoTile(_photos[1], 1)),
+                const SizedBox(height: 4),
+                Expanded(child: _buildPhotoTile(_photos[2], 2)),
+              ],
+            ),
+          ),
+        ],
+      );
+    } else {
+      // 4 or more
+      return Row(
+        children: [
+          Expanded(flex: 2, child: _buildPhotoTile(_photos[0], 0)),
+          const SizedBox(width: 4),
+          Expanded(
+            flex: 1,
+            child: Column(
+              children: [
+                Expanded(child: _buildPhotoTile(_photos[1], 1)),
+                const SizedBox(height: 4),
+                Expanded(child: _buildPhotoTile(_photos[2], 2)),
+                const SizedBox(height: 4),
+                Expanded(
+                  child: _buildPhotoTile(
+                    _photos[3],
+                    3,
+                    showOverlayIfMore: true,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      );
+    }
+  }
+
+  Widget _buildPhotoTile(
+    String photoPath,
+    int index, {
+    bool showOverlayIfMore = false,
+  }) {
+    bool hasMore = showOverlayIfMore && _photos.length > 4;
+    int remainingCount = _photos.length - 4;
+
+    return Stack(
+      fit: StackFit.expand,
+      children: [
+        GestureDetector(
+          onTap: () {
+            // Open individual image in full screen (with Hero transition)
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (_) =>
+                    FullScreenPhotoViewer(photoPath: photoPath, tag: photoPath),
+              ),
+            );
+          },
+          child: Hero(
+            tag: photoPath,
+            child: Image.file(File(photoPath), fit: BoxFit.cover),
+          ),
+        ),
+        // Overlay for "+X more"
+        if (hasMore)
+          Container(
+            color: Colors.black.withOpacity(0.5),
+            child: Center(
+              child: Text(
+                '+$remainingCount',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                ),
+              ),
+            ),
+          ),
+        // Edit Mode Delete Button
+        if (!widget.isReadOnly)
+          Positioned(
+            top: 4,
+            right: 4,
+            child: GestureDetector(
+              onTap: () => _removePhoto(photoPath),
+              child: Container(
+                decoration: const BoxDecoration(
+                  color: Colors.black54,
+                  shape: BoxShape.circle,
+                ),
+                padding: const EdgeInsets.all(4),
+                child: const Icon(Icons.close, size: 16, color: Colors.white),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+// --- FULL SCREEN VIEWERS ---
+
+class FullScreenCollageScreen extends StatelessWidget {
+  final List<String> photos;
+  final bool isReadOnly;
+
+  const FullScreenCollageScreen({
+    super.key,
+    required this.photos,
+    required this.isReadOnly,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      appBar: AppBar(
+        backgroundColor: Colors.black,
+        foregroundColor: Colors.white,
+        title: const Text('Collage Viewer'),
+        elevation: 0,
+      ),
+      body: SafeArea(
+        // We use AspectRatio or let it naturally fill the bounds
+        // using Grid/List for a structured, ratio-independent collage
+        child: Padding(
+          padding: const EdgeInsets.all(4.0),
+          child: GridView.builder(
+            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+              crossAxisCount:
+                  2, // 2 columns looks good for a phone ratio gallery
+              crossAxisSpacing: 4,
+              mainAxisSpacing: 4,
+            ),
+            itemCount: photos.length,
+            itemBuilder: (context, index) {
+              final photoPath = photos[index];
+              return GestureDetector(
+                onTap: () {
+                  Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => FullScreenPhotoViewer(
+                        photoPath: photoPath,
+                        tag: 'grid_$photoPath',
+                      ),
+                    ),
+                  );
+                },
+                child: Hero(
+                  tag: 'grid_$photoPath',
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: Image.file(File(photoPath), fit: BoxFit.cover),
+                  ),
+                ),
+              );
+            },
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class FullScreenPhotoViewer extends StatelessWidget {
+  final String photoPath;
+  final String tag;
+
+  const FullScreenPhotoViewer({
+    super.key,
+    required this.photoPath,
+    required this.tag,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      backgroundColor: Colors.black,
+      body: Stack(
+        children: [
+          // Pinch to Zoom viewer
+          Center(
+            child: InteractiveViewer(
+              panEnabled: true,
+              minScale: 1.0,
+              maxScale: 4.0,
+              child: Hero(
+                tag: tag,
+                child: Image.file(
+                  File(photoPath),
+                  fit: BoxFit.contain, // Fit ratio dynamically inside screen
+                  width: double.infinity,
+                  height: double.infinity,
+                ),
+              ),
+            ),
+          ),
+          // Clean back button over the image
+          Positioned(
+            top: MediaQuery.of(context).padding.top + 10,
+            left: 10,
+            child: IconButton(
+              icon: const Icon(
+                Icons.arrow_back_ios,
+                color: Colors.white,
+                size: 28,
+              ),
+              onPressed: () => Navigator.of(context).pop(),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
