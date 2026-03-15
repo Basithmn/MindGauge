@@ -99,17 +99,20 @@ class _SplashScreenState extends State<SplashScreen> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Image.asset(
-              'mind_gauge_logo.jpeg',
-              width: 150,
-              height: 150,
-              errorBuilder: (context, error, stackTrace) {
-                return const Icon(
-                  Icons.psychology_outlined,
-                  size: 150,
-                  color: AppColors.primary,
-                );
-              },
+            ClipRRect(
+              borderRadius: BorderRadius.circular(75),
+              child: Image.asset(
+                'assets/mind_gauge_logo.jpeg',
+                width: 150,
+                height: 150,
+                errorBuilder: (context, error, stackTrace) {
+                  return const Icon(
+                    Icons.psychology_outlined,
+                    size: 150,
+                    color: AppColors.primary,
+                  );
+                },
+              ),
             ),
             const SizedBox(height: 30),
             const Text('MINDGAUGE', style: kTitleStyle),
@@ -151,17 +154,20 @@ class AuthScreen extends StatelessWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-                Image.asset(
-                'mind_gauge_logo.jpeg',
-                width: 150,
-                height: 150,
-                errorBuilder: (context, error, stackTrace) {
-                  return const Icon(
-                    Icons.psychology_outlined,
-                    size: 150,
-                    color: AppColors.primary,
-                  );
-                },
+              ClipRRect(
+                borderRadius: BorderRadius.circular(75),
+                child: Image.asset(
+                  'assets/mind_gauge_logo.jpeg',
+                  width: 150,
+                  height: 150,
+                  errorBuilder: (context, error, stackTrace) {
+                    return const Icon(
+                      Icons.psychology_outlined,
+                      size: 150,
+                      color: AppColors.primary,
+                    );
+                  },
+                ),
               ),
               const SizedBox(height: 20),
               const Text('MINDGAUGE', style: kTitleStyle),
@@ -490,7 +496,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
     if (!_formKey.currentState!.validate()) {
       return;
     }
-    
+
     if (_selectedBirthDate == null) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -646,7 +652,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
                           }
                         },
                         child: Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 15),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 15,
+                          ),
                           decoration: BoxDecoration(
                             color: Colors.white,
                             borderRadius: BorderRadius.circular(15),
@@ -659,11 +668,16 @@ class _RegisterScreenState extends State<RegisterScreen> {
                                     ? '${_selectedBirthDate!.year}-${_selectedBirthDate!.month.toString().padLeft(2, '0')}-${_selectedBirthDate!.day.toString().padLeft(2, '0')}'
                                     : 'Select Birthdate',
                                 style: TextStyle(
-                                  color: _selectedBirthDate != null ? AppColors.text : Colors.grey,
+                                  color: _selectedBirthDate != null
+                                      ? AppColors.text
+                                      : Colors.grey,
                                   fontSize: 16,
                                 ),
                               ),
-                              const Icon(Icons.calendar_today, color: AppColors.secondary),
+                              const Icon(
+                                Icons.calendar_today,
+                                color: AppColors.secondary,
+                              ),
                             ],
                           ),
                         ),
