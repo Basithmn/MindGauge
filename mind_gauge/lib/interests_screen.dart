@@ -3,6 +3,7 @@ import 'models.dart';
 import 'services.dart';
 import 'ui_components.dart';
 import 'interests_section.dart';
+import 'photos_section.dart';
 
 
 class InterestsScreen extends StatelessWidget {
@@ -34,6 +35,19 @@ class InterestsScreen extends StatelessWidget {
                 userProfile.interests.addAll(newInterests);
               },
             ),
+            const SizedBox(height: 20),
+            PhotosSection(
+              initialPhotos: userProfile.photos,
+              onPhotosChanged: (newPhotos) async {
+                await FirebaseUserService().savePhotos(
+                  userProfile.userId,
+                  newPhotos,
+                );
+                // Update local profile state
+                userProfile.photos.clear();
+                userProfile.photos.addAll(newPhotos);
+              },
+            ),
             const SizedBox(height: 30),
             const Divider(),
             const SizedBox(height: 10),
@@ -46,6 +60,7 @@ class InterestsScreen extends StatelessWidget {
                 fontSize: 16,
               ),
             ),
+            const SizedBox(height: 20),
           ],
         ),
       ),

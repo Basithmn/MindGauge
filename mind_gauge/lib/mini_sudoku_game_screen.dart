@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'ui_components.dart';
 
 class MiniSudokuGameScreen extends StatefulWidget {
@@ -9,33 +10,30 @@ class MiniSudokuGameScreen extends StatefulWidget {
 }
 
 class _MiniSudokuGameScreenState extends State<MiniSudokuGameScreen> {
-  // A classic 9x9 Sudoku puzzle (divided into nine 3x3 blocks)
+  // A simple 4x4 Sudoku puzzle
   // 0 represents an empty, mutable cell
   final List<List<int>> initialGrid = [
-    [5, 3, 0, 0, 7, 0, 0, 0, 0],
-    [6, 0, 0, 1, 9, 5, 0, 0, 0],
-    [0, 9, 8, 0, 0, 0, 0, 6, 0],
-    [8, 0, 0, 0, 6, 0, 0, 0, 3],
-    [4, 0, 0, 8, 0, 3, 0, 0, 1],
-    [7, 0, 0, 0, 2, 0, 0, 0, 6],
-    [0, 6, 0, 0, 0, 0, 2, 8, 0],
-    [0, 0, 0, 4, 1, 9, 0, 0, 5],
-    [0, 0, 0, 0, 8, 0, 0, 7, 9],
+    [1, 0, 0, 4],
+    [0, 2, 0, 0],
+    [0, 0, 3, 0],
+    [4, 0, 0, 2],
   ];
 
+  late List<List<int>> initialGrid;
   late List<List<int>> grid;
-
   @override
   void initState() {
     super.initState();
     _resetGame();
   }
-
   void _resetGame() {
-    grid = List.generate(9, (r) => List.from(initialGrid[r]));
+    grid = List.generate(4, (r) => List.from(initialGrid[r]));
     setState(() {});
   }
 
+  
+
+  
   void _onCellTapped(int row, int col) {
     if (initialGrid[row][col] != 0) return;
 

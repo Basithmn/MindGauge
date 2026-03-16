@@ -150,7 +150,18 @@ class _Level2ResultScreenState extends State<Level2ResultScreen> {
               onTap: () => Navigator.of(context).pushAndRemoveUntil(
                 MaterialPageRoute(
                   builder: (_) =>
-                      MainDashboard(userProfile: widget.userProfile),
+                      MainDashboard(userProfile: widget.userProfile, initialIndex: 0),
+                ),
+                (route) => false,
+              ),
+            ),
+            _ShortcutItem(
+              icon: Icons.auto_awesome,
+              label: "Go to Moments",
+              onTap: () => Navigator.of(context).pushAndRemoveUntil(
+                MaterialPageRoute(
+                  builder: (_) =>
+                      MainDashboard(userProfile: widget.userProfile, initialIndex: 1),
                 ),
                 (route) => false,
               ),

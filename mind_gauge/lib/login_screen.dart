@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'dashboard_screen.dart';
 import 'services.dart';
 import 'ui_components.dart';
+
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -20,7 +21,9 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!_formKey.currentState!.validate()) {
       return;
     }
-    setState(() { _isLoading = true; });
+    setState(() {
+      _isLoading = true;
+    });
 
     try {
       final user = await _authService.login(
@@ -28,21 +31,27 @@ class _LoginScreenState extends State<LoginScreen> {
         _passwordController.text,
       );
 
-      setState(() { _isLoading = false; });
+      setState(() {
+        _isLoading = false;
+      });
 
       if (user != null && mounted) {
         Navigator.of(context).pushReplacement(
-          MaterialPageRoute(builder: (context) => MainDashboard(userProfile: user)),
+          MaterialPageRoute(
+            builder: (context) => MainDashboard(userProfile: user),
+          ),
         );
       } else {
-          // This would catch a user who logged in via Firebase Auth but whose 
-          // profile details (name, age) are missing from the mock database.
-          ScaffoldMessenger.of(context).showSnackBar(
-           const SnackBar(content: Text('Login failed: Profile data missing.')),
-         );
+        // This would catch a user who logged in via Firebase Auth but whose
+        // profile details (name, age) are missing from the mock database.
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Login failed: Profile data missing.')),
+        );
       }
     } on String catch (errorCode) {
-      setState(() { _isLoading = false; });
+      setState(() {
+        _isLoading = false;
+      });
       String message = 'Login failed.';
       if (errorCode == 'user-not-found') {
         message = 'No user found for that email.';
@@ -52,16 +61,22 @@ class _LoginScreenState extends State<LoginScreen> {
         message = 'Firebase Error: $errorCode';
       }
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(message)));
       }
     } catch (e) {
-      setState(() { _isLoading = false; });
+      setState(() {
+        _isLoading = false;
+      });
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(e.toString())));
       }
     }
   }
-  
+
   // FIX: Added dispose method
   @override
   void dispose() {
@@ -90,13 +105,32 @@ class _LoginScreenState extends State<LoginScreen> {
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 const SizedBox(height: 20),
-                const Center(
-                  child: Icon(Icons.psychology_outlined, size: 80, color: AppColors.primary),
+                Center(
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(65),
+                    child: Image.asset(
+                      'assets/mind_gauge_logo.jpeg',
+                      width: 130,
+                      height: 130,
+                      errorBuilder: (context, error, stackTrace) {
+                        return const Icon(
+                          Icons.psychology_outlined,
+                          size: 80,
+                          color: AppColors.primary,
+                        );
+                      },
+                    ),
+                  ),
                 ),
                 const SizedBox(height: 20),
                 const Center(child: Text('MINDGAUGE', style: kTitleStyle)),
                 const SizedBox(height: 5),
-                const Center(child: Text('Measure your Mental Health Status', style: kSubtitleStyle)),
+                const Center(
+                  child: Text(
+                    'Measure your Mental Health Status',
+                    style: kSubtitleStyle,
+                  ),
+                ),
                 const SizedBox(height: 40),
                 CustomTextField(
                   label: 'E-mail id',
@@ -128,13 +162,17 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
                 const SizedBox(height: 50),
                 _isLoading
-                  ? const Center(child: CircularProgressIndicator(color: AppColors.primary))
-                  : Center(
-                      child: StyledButton(
-                        text: 'LOGIN',
-                        onPressed: _handleLogin,
+                    ? const Center(
+                        child: CircularProgressIndicator(
+                          color: AppColors.primary,
+                        ),
+                      )
+                    : Center(
+                        child: StyledButton(
+                          text: 'LOGIN',
+                          onPressed: _handleLogin,
+                        ),
                       ),
-                    ),
               ],
             ),
           ),

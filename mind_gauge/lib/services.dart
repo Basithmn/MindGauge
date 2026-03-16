@@ -40,7 +40,7 @@ class AuthService {
     required String email,
     required String password,
     required String name,
-    required int age,
+    required DateTime birthDate,
     required String location,
   }) async {
     try {
@@ -51,21 +51,56 @@ class AuthService {
 
       final user = userCredential.user!;
 
-      await _userService.saveUserDetails(user.uid, name, age, location, []);
+      await _userService.saveUserDetails(user.uid, name, birthDate, location, []);
 
       return UserProfile(
         email: email,
         name: name,
         userId: user.uid,
-        age: age,
+        birthDate: birthDate,
         location: location,
         interests: [],
+        photos: [],
       );
     } on FirebaseAuthException catch (e) {
       throw e.code;
     } catch (e) {
       throw 'An unknown error occurred.';
     }
+  }
+
+  // --- DELETE ACCOUNT ---
+  Future<void> deleteAccount() async {
+    try {
+      final user = _auth.currentUser;
+      if (user != null) {
+        // First delete from Firestore
+        await FirebaseFirestore.instance.collection('users').doc(user.uid).delete();
+        // Then delete the auth user
+        await user.delete();
+      }
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'requires-recent-login') {
+        throw 'Security restriction: Please log out and log back in before deleting your account.';
+      }
+      throw e.message ?? 'An unknown error occurred.';
+    } catch (e) {
+      throw 'Failed to delete account: $e';
+    }
+  }
+
+  // --- RESET PASSWORD ---
+  Future<void> resetPassword(String email) async {
+    try {
+      await _auth.sendPasswordResetEmail(email: email);
+    } on FirebaseAuthException catch (e) {
+      throw e.message ?? 'An unknown error occurred.';
+    }
+  }
+
+  // --- LOGOUT ---
+  Future<void> logout() async {
+    await _auth.signOut();
   }
 }
 
@@ -75,11 +110,15 @@ class FirebaseUserService {
   Future<void> saveUserDetails(
     String userId,
     String name,
-    int age,
+    DateTime birthDate,
     String location,
     List<String>? interests,
   ) async {
-    final data = {'name': name, 'age': age, 'location': location};
+    final data = {
+      'name': name,
+      'birthDate': Timestamp.fromDate(birthDate),
+      'location': location,
+    };
     if (interests != null) {
       data['interests'] = interests;
     }
@@ -92,6 +131,12 @@ class FirebaseUserService {
   Future<void> saveInterests(String userId, List<String> interests) async {
     await _firestore.collection('users').doc(userId).set({
       'interests': interests,
+    }, SetOptions(merge: true));
+  }
+
+  Future<void> savePhotos(String userId, List<String> photos) async {
+    await _firestore.collection('users').doc(userId).set({
+      'photos': photos,
     }, SetOptions(merge: true));
   }
 
@@ -126,6 +171,21 @@ class FirebaseUserService {
         .doc(userId)
         .collection('assessments')
         .add(assessmentData);
+  }
+
+  Future<Map<String, dynamic>?> getLatestAssessment(String userId) async {
+    final querySnapshot = await _firestore
+        .collection('users')
+        .doc(userId)
+        .collection('assessments')
+        .orderBy('timestamp', descending: true)
+        .limit(1)
+        .get();
+
+    if (querySnapshot.docs.isNotEmpty) {
+      return querySnapshot.docs.first.data();
+    }
+    return null;
   }
 
   Future<void> saveLevel2Result({
