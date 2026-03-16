@@ -1,5 +1,10 @@
 import 'package:flutter/material.dart';
+import 'dart:math';
 import 'ui_components.dart';
+
+const Color bgNavy = Color(0xFF0A1128);
+const Color neonCyan = AppColors.primary;
+const Color neonMagenta = Color(0xFFFF00FF);
 
 class ZipGameScreen extends StatefulWidget {
   const ZipGameScreen({super.key});
@@ -10,7 +15,7 @@ class ZipGameScreen extends StatefulWidget {
 
 class _ZipGameScreenState extends State<ZipGameScreen> {
   final int gridSize = 5;
-  
+
   // Game puzzle definition: Endpoints to connect
   final Map<Color, List<Offset>> endpoints = {
     Colors.red: [const Offset(0, 0), const Offset(4, 4)],
@@ -22,34 +27,46 @@ class _ZipGameScreenState extends State<ZipGameScreen> {
   List<Point<int>> path = [];
   bool isComplete = false;
 
+  late List<List<Color?>> grid;
+  Color? activeColor;
+
   late Map<Point<int>, int> _puzzleClues;
 
-  // A collection of different 5x5 Hamiltonian paths (snaking, spirals, etc.) 
+  // A collection of different 5x5 Hamiltonian paths (snaking, spirals, etc.)
   // to provide random layouts upon each game reset.
   final List<Map<Point<int>, int>> _puzzleLevels = [
     {
-      Point(4, 0): 1, Point(4, 4): 5, Point(0, 4): 9, Point(0, 0): 13,
-      Point(3, 0): 16, Point(3, 3): 19, Point(1, 1): 25,
+      Point(4, 0): 1,
+      Point(4, 4): 5,
+      Point(0, 4): 9,
+      Point(0, 0): 13,
+      Point(3, 0): 16,
+      Point(3, 3): 19,
+      Point(1, 1): 25,
     },
-    { // Horizontal Snake
+    {
+      // Horizontal Snake
       Point(0, 0): 1, Point(0, 4): 5, Point(1, 4): 6, Point(1, 0): 10,
       Point(2, 0): 11, Point(2, 4): 15, Point(3, 4): 16, Point(3, 0): 20,
       Point(4, 0): 21, Point(4, 4): 25,
     },
-    { // Inward Spiral
+    {
+      // Inward Spiral
       Point(0, 0): 1, Point(0, 4): 5, Point(4, 4): 9, Point(4, 0): 13,
       Point(1, 0): 16, Point(1, 3): 19, Point(3, 3): 21, Point(3, 1): 23,
       Point(2, 2): 25,
     },
-    { // Vertical Snake
+    {
+      // Vertical Snake
       Point(0, 0): 1, Point(4, 0): 5, Point(4, 1): 6, Point(0, 1): 10,
       Point(0, 2): 11, Point(4, 2): 15, Point(4, 3): 16, Point(0, 3): 20,
       Point(0, 4): 21, Point(4, 4): 25,
     },
-    { // Outward Spiral
+    {
+      // Outward Spiral
       Point(2, 2): 1, Point(1, 1): 5, Point(3, 3): 9, Point(0, 4): 13,
       Point(0, 0): 17, Point(4, 0): 21, Point(4, 4): 25,
-    }
+    },
   ];
 
   @override
@@ -98,12 +115,14 @@ class _ZipGameScreenState extends State<ZipGameScreen> {
           if (idx < path.length - 1) {
             path = path.sublist(0, idx + 1);
           }
-        } 
-        else {
+        } else {
           Point<int> lastPoint = path.last;
-          if ((lastPoint.x - currentPoint.x).abs() + (lastPoint.y - currentPoint.y).abs() == 1) {
+          if ((lastPoint.x - currentPoint.x).abs() +
+                  (lastPoint.y - currentPoint.y).abs() ==
+              1) {
             // Constraints: If this cell has a clue, does it match the coming length?
-            if (_puzzleClues.containsKey(currentPoint) && _puzzleClues[currentPoint] != path.length + 1) {
+            if (_puzzleClues.containsKey(currentPoint) &&
+                _puzzleClues[currentPoint] != path.length + 1) {
               return; // Block adding
             }
             path.add(currentPoint);
@@ -157,7 +176,10 @@ class _ZipGameScreenState extends State<ZipGameScreen> {
     return Scaffold(
       backgroundColor: bgNavy,
       appBar: AppBar(
-        title: const Text('ZIP', style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 4.0)),
+        title: const Text(
+          'ZIP',
+          style: TextStyle(fontWeight: FontWeight.w900, letterSpacing: 4.0),
+        ),
         backgroundColor: bgNavy,
         foregroundColor: neonCyan,
         elevation: 0,
@@ -177,7 +199,7 @@ class _ZipGameScreenState extends State<ZipGameScreen> {
               ),
             ),
           ),
-          
+
           Expanded(
             child: Center(
               child: AspectRatio(
@@ -186,10 +208,15 @@ class _ZipGameScreenState extends State<ZipGameScreen> {
                   padding: const EdgeInsets.all(16.0),
                   child: LayoutBuilder(
                     builder: (context, constraints) {
-                      Size boardSize = Size(constraints.maxWidth, constraints.maxHeight);
+                      Size boardSize = Size(
+                        constraints.maxWidth,
+                        constraints.maxHeight,
+                      );
                       return GestureDetector(
-                        onPanStart: (details) => _handlePan(details.localPosition, boardSize),
-                        onPanUpdate: (details) => _handlePan(details.localPosition, boardSize),
+                        onPanStart: (details) =>
+                            _handlePan(details.localPosition, boardSize),
+                        onPanUpdate: (details) =>
+                            _handlePan(details.localPosition, boardSize),
                         child: Stack(
                           children: [
                             // 1. Grid Background
@@ -197,10 +224,13 @@ class _ZipGameScreenState extends State<ZipGameScreen> {
                               decoration: BoxDecoration(
                                 color: bgNavy,
                                 borderRadius: BorderRadius.circular(16),
-                                border: Border.all(color: neonCyan.withValues(alpha: 0.3), width: 2),
+                                border: Border.all(
+                                  color: neonCyan.withValues(alpha: 0.3),
+                                  width: 2,
+                                ),
                               ),
                             ),
-                            
+
                             // 2. Custom Path Painter
                             CustomPaint(
                               size: boardSize,
@@ -213,16 +243,20 @@ class _ZipGameScreenState extends State<ZipGameScreen> {
                                 startColor: neonMagenta,
                               ),
                             ),
-                            
+
                             // 3. Foreground Texts
                             GridView.builder(
                               physics: const NeverScrollableScrollPhysics(),
-                              gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: gridSize,
-                              ),
+                              gridDelegate:
+                                  SliverGridDelegateWithFixedCrossAxisCount(
+                                    crossAxisCount: gridSize,
+                                  ),
                               itemCount: gridSize * gridSize,
                               itemBuilder: (context, index) {
-                                Point<int> p = Point(index ~/ gridSize, index % gridSize);
+                                Point<int> p = Point(
+                                  index ~/ gridSize,
+                                  index % gridSize,
+                                );
                                 if (_puzzleClues.containsKey(p)) {
                                   bool visited = path.contains(p);
                                   return Center(
@@ -248,7 +282,7 @@ class _ZipGameScreenState extends State<ZipGameScreen> {
               ),
             ),
           ),
-          
+
           // Controls
           Padding(
             padding: const EdgeInsets.fromLTRB(24, 0, 24, 40),
@@ -308,7 +342,9 @@ class _PathPainter extends CustomPainter {
     final double nodeRadius = (cellW < cellH ? cellW : cellH) * 0.28;
 
     // 1. Draw empty nodes (and special styling for clue nodes)
-    final Paint emptyPaint = Paint()..color = emptyColor..style = PaintingStyle.fill;
+    final Paint emptyPaint = Paint()
+      ..color = emptyColor
+      ..style = PaintingStyle.fill;
     final Paint clueBorderPaint = Paint()
       ..color = Colors.white54
       ..style = PaintingStyle.stroke
@@ -318,10 +354,16 @@ class _PathPainter extends CustomPainter {
       for (int c = 0; c < gridSize; c++) {
         Offset center = Offset(c * cellW + cellW / 2, r * cellH + cellH / 2);
         Point<int> p = Point(r, c);
-        
+
         if (clues.containsKey(p)) {
           // Draw bordered circle for unvisited clue nodes
-          canvas.drawCircle(center, nodeRadius, Paint()..color = const Color(0xFF0A1128)..style = PaintingStyle.fill);
+          canvas.drawCircle(
+            center,
+            nodeRadius,
+            Paint()
+              ..color = const Color(0xFF0A1128)
+              ..style = PaintingStyle.fill,
+          );
           canvas.drawCircle(center, nodeRadius, clueBorderPaint);
         } else {
           // Normal empty connector node
@@ -341,7 +383,10 @@ class _PathPainter extends CustomPainter {
 
       Path linePath = Path();
       for (int i = 0; i < path.length; i++) {
-        Offset center = Offset(path[i].y * cellW + cellW / 2, path[i].x * cellH + cellH / 2);
+        Offset center = Offset(
+          path[i].y * cellW + cellW / 2,
+          path[i].x * cellH + cellH / 2,
+        );
         if (i == 0) {
           linePath.moveTo(center.dx, center.dy);
         } else {
@@ -353,15 +398,29 @@ class _PathPainter extends CustomPainter {
       // 3. Overdraw highlighted nodes for smoothing
       for (int i = 0; i < path.length; i++) {
         Point<int> p = path[i];
-        Offset center = Offset(p.y * cellW + cellW / 2, p.x * cellH + cellH / 2);
-        
+        Offset center = Offset(
+          p.y * cellW + cellW / 2,
+          p.x * cellH + cellH / 2,
+        );
+
         // Emphasize the starting node with a different color (Magenta)
         if (clues[p] == 1) {
-          canvas.drawCircle(center, nodeRadius * 0.9, Paint()..color = startColor..style = PaintingStyle.fill);
-        } 
-        else if (clues.containsKey(p)) {
-           // Emphasize other matched clues (White)
-           canvas.drawCircle(center, nodeRadius * 0.9, Paint()..color = Colors.white..style = PaintingStyle.fill);
+          canvas.drawCircle(
+            center,
+            nodeRadius * 0.9,
+            Paint()
+              ..color = startColor
+              ..style = PaintingStyle.fill,
+          );
+        } else if (clues.containsKey(p)) {
+          // Emphasize other matched clues (White)
+          canvas.drawCircle(
+            center,
+            nodeRadius * 0.9,
+            Paint()
+              ..color = Colors.white
+              ..style = PaintingStyle.fill,
+          );
         }
       }
     }
@@ -370,4 +429,3 @@ class _PathPainter extends CustomPainter {
   @override
   bool shouldRepaint(covariant _PathPainter oldDelegate) => true;
 }
-
