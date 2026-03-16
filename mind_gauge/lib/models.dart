@@ -5,27 +5,76 @@ class UserProfile {
   final String email;
   final String name;
   final String userId;
-  final int age;
+  final DateTime? birthDate; // Replaces `age` field directly
+  final int? _legacyAge;     // Fallback if Date is missing
   final String location;
   final List<String> interests;
+  final List<String> photos;
 
   UserProfile({
     required this.email,
     required this.name,
     required this.userId,
-    required this.age,
+    this.birthDate,
+    int? legacyAge,
     required this.location,
     required this.interests,
-  });
+    this.photos = const [],
+  }) : _legacyAge = legacyAge;
+
+  int get age {
+    if (birthDate != null) {
+      final now = DateTime.now();
+      int calculatedAge = now.year - birthDate!.year;
+      if (now.month < birthDate!.month || 
+          (now.month == birthDate!.month && now.day < birthDate!.day)) {
+        calculatedAge--;
+      }
+      return calculatedAge;
+    }
+    return _legacyAge ?? 0;
+  }
+  UserProfile copyWith({
+    String? email,
+    String? name,
+    String? userId,
+    DateTime? birthDate,
+    int? legacyAge,
+    String? location,
+    List<String>? interests,
+    List<String>? photos,
+  }) {
+    return UserProfile(
+      email: email ?? this.email,
+      name: name ?? this.name,
+      userId: userId ?? this.userId,
+      birthDate: birthDate ?? this.birthDate,
+      legacyAge: legacyAge ?? _legacyAge,
+      location: location ?? this.location,
+      interests: interests ?? this.interests,
+      photos: photos ?? this.photos,
+    );
+  }
 
   factory UserProfile.fromDatabase(Map<String, dynamic> data, User user) {
+    DateTime? parsedDate;
+    if (data['birthDate'] != null) {
+      if (data['birthDate'] is Timestamp) {
+        parsedDate = (data['birthDate'] as Timestamp).toDate();
+      } else if (data['birthDate'] is String) {
+        parsedDate = DateTime.tryParse(data['birthDate']);
+      }
+    }
+
     return UserProfile(
       email: user.email ?? '',
-      name: data['name'] as String,
+      name: data['name'] as String? ?? 'Unknown',
       userId: user.uid,
-      age: data['age'] as int,
-      location: data['location'] as String,
+      birthDate: parsedDate,
+      legacyAge: data['age'] as int?,
+      location: data['location'] as String? ?? 'Unknown',
       interests: List<String>.from(data['interests'] ?? []),
+      photos: List<String>.from(data['photos'] ?? []),
     );
   }
 }

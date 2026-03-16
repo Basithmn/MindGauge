@@ -5,6 +5,8 @@ import 'ui_components.dart';
 import 'services.dart';
 import 'level2_adult_screen.dart';
 import 'level2_adolescent_screen.dart';
+import 'dashboard_screen.dart';
+import 'level2_adolescent_screen.dart';
 
 class AssessmentResultScreen extends StatelessWidget {
   final List<DomainScore> results;
@@ -210,6 +212,29 @@ class AssessmentResultScreen extends StatelessWidget {
                   ],
                 ),
               ),
+
+            const SizedBox(height: 30),
+            
+            // Link to Moments Page
+            Center(
+              child: StyledButton(
+                text: 'GO TO MOMENTS',
+                onPressed: () {
+                  // Navigate to Dashboard and switch to Moments tab (index 1)
+                  Navigator.of(context).pushAndRemoveUntil(
+                    MaterialPageRoute(
+                      builder: (context) => MainDashboard(
+                        userProfile: userProfile,
+                        initialIndex: 1, // 1 is the Moments tab
+                      ),
+                    ),
+                    (route) => false,
+                  );
+                },
+                color: const Color.fromARGB(255, 255, 183, 77), // Warm color for moments
+              ),
+            ),
+            const SizedBox(height: 20),
           ], // Line 1987: Now cleanly closes the list
         ),
       ),

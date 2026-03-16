@@ -5,6 +5,7 @@ import pandas as pd
 import os
 
 app = Flask(__name__)
+app.config['MAX_CONTENT_LENGTH'] = 50 * 1024 * 1024  # allow 50MB uploads
 CORS(app) 
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
@@ -220,8 +221,18 @@ def softmax(x):
 @app.route('/analyze_face', methods=['POST'])
 def analyze_face():
     try:
-        data = request.get_json()
-        image_data = data.get('image', '') # Expecting base64 string
+        print("Headers:", request.headers)
+        print("Content-Type:", request.content_type)
+        print("Raw body preview:", request.get_data()[:200])
+        data = request.get_json(silent=True)
+
+        if not data or 'image' not in data:
+            return jsonify({
+                "status": "error",
+                "message": "Invalid JSON or missing image"
+            }), 400
+
+        image_data = data['image']
 
         if not image_data:
             return jsonify({"status": "error", "message": "No image provided"}), 400
@@ -238,6 +249,7 @@ def analyze_face():
             return jsonify({"status": "error", "message": "Invalid image format"}), 400
 
         result = process_single_frame(img)
+        
         return jsonify(result)
 
     except Exception as e:
@@ -302,27 +314,46 @@ import tempfile
 def analyze_video():
     """Processes a 5-10s video and returns aggregated visual sentiment."""
     try:
-        data = request.get_json()
-        video_data = data.get('video', '')
+        data = request.get_json(silent=True)
+
+        if not data or 'video' not in data:
+            return jsonify({
+                "status": "error",
+                "message": "Invalid JSON or missing video"
+            }), 400
+
+        video_data = data['video']
 
         if not video_data:
             return jsonify({"status": "error", "message": "No video provided"}), 400
-
+        print("Video request size:", len(video_data))
         if ',' in video_data:
             video_data = video_data.split(',')[1]
 
         # Decode and save to temp file
-        decoded_video = base64.b64decode(video_data)
+        try:
+            decoded_video = base64.b64decode(video_data)
+        except Exception as e:
+            return jsonify({
+                "status": "error",
+                "message": "Invalid base64 video data"
+            }), 400
         with tempfile.NamedTemporaryFile(delete=False, suffix='.mp4') as temp_video:
             temp_video.write(decoded_video)
             video_path = temp_video.name
-
         cap = cv2.VideoCapture(video_path)
+
+        if not cap.isOpened():
+            os.unlink(video_path)
+            return jsonify({
+                "status": "error",
+                "message": "Failed to open video file"
+            }), 400
         fps = cap.get(cv2.CAP_PROP_FPS)
         frame_count = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
         
         # We sample every 500ms
-        sample_rate = int(fps / 2) if fps > 0 else 1
+        sample_rate = max(int(fps / 2), 1) if fps else 1
         if sample_rate == 0: sample_rate = 1
 
         emotion_history = []
@@ -431,4 +462,4 @@ def combined_report():
 if __name__ == '__main__':
     print("Starting MindGauge ML API...")
     print("Test endpoint available at: http://localhost:5000/test")
-    app.run(host='0.0.0.0', port=5000)
+    app.run(host='0.0.0.0', port=5000, threaded=True)

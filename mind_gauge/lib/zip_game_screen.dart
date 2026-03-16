@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'dart:math';
 import 'ui_components.dart';
 
 class ZipGameScreen extends StatefulWidget {
@@ -12,10 +11,13 @@ class ZipGameScreen extends StatefulWidget {
 class _ZipGameScreenState extends State<ZipGameScreen> {
   final int gridSize = 5;
   
-  // Neon Color Palette
-  static const Color bgNavy = Color(0xFF0A1128);
-  static const Color neonCyan = Color(0xFF00FFCC);
-  static const Color neonMagenta = Color(0xFFFF00FF);
+  // Game puzzle definition: Endpoints to connect
+  final Map<Color, List<Offset>> endpoints = {
+    Colors.red: [const Offset(0, 0), const Offset(4, 4)],
+    Colors.blue: [const Offset(0, 4), const Offset(4, 0)],
+    Colors.green: [const Offset(2, 0), const Offset(2, 4)],
+    Colors.orange: [const Offset(0, 2), const Offset(4, 2)],
+  };
 
   List<Point<int>> path = [];
   bool isComplete = false;
@@ -58,11 +60,15 @@ class _ZipGameScreenState extends State<ZipGameScreen> {
   }
 
   void _resetGame() {
-    setState(() {
-      path.clear();
-      isComplete = false;
-      _puzzleClues = _puzzleLevels[Random().nextInt(_puzzleLevels.length)];
-    });
+    grid = List.generate(gridSize, (_) => List.filled(gridSize, null));
+    // Place endpoints on the grid
+    for (var entry in endpoints.entries) {
+      grid[entry.value[0].dy.toInt()][entry.value[0].dx.toInt()] = entry.key;
+      grid[entry.value[1].dy.toInt()][entry.value[1].dx.toInt()] = entry.key;
+    }
+    activeColor = null;
+    isComplete = false;
+    setState(() {});
   }
 
   void _handlePan(Offset localPosition, Size boardSize) {
@@ -119,72 +125,29 @@ class _ZipGameScreenState extends State<ZipGameScreen> {
     showDialog(
       context: context,
       barrierDismissible: false,
-      builder: (context) => Dialog(
-        backgroundColor: bgNavy,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(20),
-          side: const BorderSide(color: neonCyan, width: 2),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(24.0),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              const Icon(Icons.bolt, color: neonCyan, size: 64),
-              const SizedBox(height: 16),
-              const Text(
-                'SYSTEM SEAMLESS',
-                style: TextStyle(
-                  color: neonCyan,
-                  fontSize: 24,
-                  fontWeight: FontWeight.w900,
-                  letterSpacing: 2.0,
-                ),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                'Power core connected flawlessly.\nGravity normalisation restored.',
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.white70, fontSize: 16),
-              ),
-              const SizedBox(height: 32),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  ElevatedButton(
-                    onPressed: () {
-                      Navigator.of(context).pop();
-                      _resetGame();
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: neonMagenta.withValues(alpha: 0.2),
-                      side: const BorderSide(color: neonMagenta),
-                      foregroundColor: Colors.white,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                    ),
-                    child: const Text('REPLAY PUZZLE'),
-                  ),
-                  const SizedBox(height: 12),
-                  ElevatedButton(
-                    onPressed: () {
-                      Navigator.of(context).pop();
-                      Navigator.of(context).pop(); // Back to dashboard
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: neonCyan,
-                      foregroundColor: bgNavy,
-                      padding: const EdgeInsets.symmetric(vertical: 16),
-                    ),
-                    child: const Text(
-                      'RETURN TO MENU',
-                      style: TextStyle(fontWeight: FontWeight.bold),
-                    ),
-                  ),
-                ],
-              ),
-            ],
+      builder: (context) => AlertDialog(
+        title: const Text('Puzzle Solved!'),
+        content: const Text('You successfully navigated the grid.'),
+        actions: [
+          TextButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              _resetGame();
+            },
+            child: const Text('Play Again'),
           ),
-        ),
+          ElevatedButton(
+            onPressed: () {
+              Navigator.of(context).pop();
+              Navigator.of(context).pop(); // Go back to dashboard
+            },
+            style: ElevatedButton.styleFrom(
+              backgroundColor: const Color(0xFFE56B24),
+              foregroundColor: Colors.white,
+            ),
+            child: const Text('Back to Games'),
+          ),
+        ],
       ),
     );
   }

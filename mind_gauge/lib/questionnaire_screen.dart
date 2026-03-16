@@ -25,6 +25,7 @@ class _QuestionnaireScreenState extends State<QuestionnaireScreen> {
   // Camera & Emotion Analysis
   final CameraService _cameraService = CameraService();
   String _currentEmotion = "";
+  final List<Map<String, dynamic>> _expressionHistory = [];
 
   @override
   void initState() {
@@ -37,14 +38,16 @@ class _QuestionnaireScreenState extends State<QuestionnaireScreen> {
 
   Future<void> _initializeCamera() async {
     await _cameraService.initialize();
-    if (_cameraService.isInitialized) {
-      await _cameraService.startVideoRecording();
+    if (mounted) {
+      setState(() {});
+      // Start checking lighting right after camera is initialized.
+      _cameraService.startLightingCheckStream();
     }
-    if (mounted) setState(() {});
   }
 
   @override
   void dispose() {
+    _cameraService.stopLightingCheckStream();
     _cameraService.dispose();
     super.dispose();
   }
@@ -62,7 +65,7 @@ class _QuestionnaireScreenState extends State<QuestionnaireScreen> {
               "${result['dominant_emotion']} (${(result['score'] * 100).toStringAsFixed(1)}%)";
         });
         print("Detected Emotion: $_currentEmotion");
-        // TODO: Store this emotion data alongside the specific question response if needed
+        _expressionHistory.add(result);
       }
     }
   }
@@ -72,11 +75,32 @@ class _QuestionnaireScreenState extends State<QuestionnaireScreen> {
       _isLoading = true;
     });
 
-    // 1. Stop Video Recording and Analyze
+    // 1. Aggregate Visual Sentiment from snapshots
     Map<String, dynamic>? visualSentiment;
-    XFile? videoFile = await _cameraService.stopVideoRecording();
-    if (videoFile != null) {
-      visualSentiment = await _cameraService.analyzeVideo(videoFile);
+
+    if (_expressionHistory.isNotEmpty) {
+      Map<String, double> profile = {};
+      int count = _expressionHistory.length;
+
+      for (var result in _expressionHistory) {
+        Map<String, dynamic> details = result['details'] ?? {};
+        details.forEach((key, value) {
+          profile[key] = (profile[key] ?? 0) + (value as num).toDouble();
+        });
+      }
+
+      profile.forEach((key, value) {
+        profile[key] = value / count;
+      });
+
+      String dominant = profile.entries
+          .reduce((a, b) => a.value > b.value ? a : b)
+          .key;
+      visualSentiment = {
+        'dominant_emotion': dominant,
+        'visual_sentiment_profile': profile,
+        'overall_score': profile[dominant],
+      };
     }
 
     // 2. Prepare 13 Domain Scores for the Gatekeeper model
@@ -152,8 +176,12 @@ class _QuestionnaireScreenState extends State<QuestionnaireScreen> {
     });
     if (!mounted) return;
 
-    // 8. Navigate to Results
-    Navigator.of(context).push(
+    // 8. Turn off the camera completely
+    await _cameraService.stopLightingCheckStream();
+    await _cameraService.dispose();
+
+    // 9. Navigate to Results
+    Navigator.of(context).pushReplacement(
       MaterialPageRoute(
         builder: (_) => AssessmentResultScreen(
           results: categoricalResults,
@@ -192,16 +220,6 @@ class _QuestionnaireScreenState extends State<QuestionnaireScreen> {
                 ),
               ),
             ),
-          IconButton(
-            icon: const Icon(Icons.menu),
-            onPressed: () {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Menu tapped: Detected Issue, Trends, etc.'),
-                ),
-              );
-            },
-          ),
         ],
       ),
       body: SingleChildScrollView(
@@ -219,6 +237,48 @@ class _QuestionnaireScreenState extends State<QuestionnaireScreen> {
                   _cameraService.controller!,
                 ), // Hidden but active
               ),
+
+            // --- Lighting Check Warning Banner ---
+            ValueListenableBuilder<bool>(
+              valueListenable: _cameraService.isLightingGood,
+              builder: (context, isGood, child) {
+                if (isGood) return const SizedBox.shrink();
+
+                return Container(
+                  margin: const EdgeInsets.only(bottom: 20),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.orange.shade100,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                      color: Colors.orange.shade400,
+                      width: 1.5,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      Icon(
+                        Icons.lightbulb_outline,
+                        color: Colors.orange.shade800,
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text(
+                          "It looks a bit dark. Please move to a brighter area for better accuracy.",
+                          style: TextStyle(
+                            color: Colors.orange.shade900,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+              },
+            ),
 
             Text(
               'Questionnaire Version: ${MockQuestionnaireService.mapAgeToQuestionnaire(widget.userProfile.age).toString().split('.').last}',

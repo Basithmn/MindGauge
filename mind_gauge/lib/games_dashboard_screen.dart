@@ -12,7 +12,9 @@ class GamesDashboardScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     // Current date format: "Thursday, Mar 12"
-    final String currentDateStr = DateFormat('EEEE, MMM d').format(DateTime.now());
+    final String currentDateStr = DateFormat(
+      'EEEE, MMM d',
+    ).format(DateTime.now());
 
     return Scaffold(
       appBar: AppBar(
@@ -40,17 +42,15 @@ class GamesDashboardScreen extends StatelessWidget {
             const SizedBox(height: 8),
             const Text(
               'Prep your mind for the workday and compare results.',
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.black54,
-              ),
+              style: TextStyle(fontSize: 14, color: Colors.black54),
             ),
             const SizedBox(height: 20),
             _GameCard(
               title: 'Zip',
               issueNumber: '#360',
               date: currentDateStr,
-              description: 'Use your pathfinding skills to move through the grid.',
+              description:
+                  'Use your pathfinding skills to move through the grid.',
               buttonColor: const Color(0xFFE56B24),
               headerGradient: const LinearGradient(
                 colors: [Color(0xFFF6A05A), Color(0xFFF9603A)],
@@ -72,14 +72,22 @@ class GamesDashboardScreen extends StatelessWidget {
                       fontSize: 32,
                       fontWeight: FontWeight.w900,
                       color: Colors.white,
-                      shadows: [Shadow(color: Colors.black54, blurRadius: 2, offset: Offset(1, 1))],
+                      shadows: [
+                        Shadow(
+                          color: Colors.black54,
+                          blurRadius: 2,
+                          offset: Offset(1, 1),
+                        ),
+                      ],
                     ),
                   ),
                 ),
               ),
               onSolve: () {
                 Navigator.of(context).push(
-                  MaterialPageRoute(builder: (context) => const ZipGameScreen()),
+                  MaterialPageRoute(
+                    builder: (context) => const ZipGameScreen(),
+                  ),
                 );
               },
             ),
@@ -104,12 +112,18 @@ class GamesDashboardScreen extends StatelessWidget {
                   border: Border.all(color: Colors.black87, width: 2),
                 ),
                 child: const Center(
-                  child: Icon(Icons.grid_3x3, color: Color(0xFF3B9B62), size: 36),
+                  child: Icon(
+                    Icons.grid_3x3,
+                    color: Color(0xFF3B9B62),
+                    size: 36,
+                  ),
                 ),
               ),
               onSolve: () {
                 Navigator.of(context).push(
-                  MaterialPageRoute(builder: (context) => const MiniSudokuGameScreen()),
+                  MaterialPageRoute(
+                    builder: (context) => const MiniSudokuGameScreen(),
+                  ),
                 );
               },
             ),
@@ -138,7 +152,9 @@ class GamesDashboardScreen extends StatelessWidget {
                     Expanded(
                       child: Column(
                         children: [
-                          Expanded(child: Container(color: const Color(0xFFA5C5F2))),
+                          Expanded(
+                            child: Container(color: const Color(0xFFA5C5F2)),
+                          ),
                           Expanded(child: Container(color: Colors.white)),
                         ],
                       ),
@@ -147,16 +163,20 @@ class GamesDashboardScreen extends StatelessWidget {
                       child: Column(
                         children: [
                           Expanded(child: Container(color: Colors.white)),
-                          Expanded(child: Container(color: const Color(0xFFFCAE3D))),
+                          Expanded(
+                            child: Container(color: const Color(0xFFFCAE3D)),
+                          ),
                         ],
                       ),
-                    )
+                    ),
                   ],
                 ),
               ),
               onSolve: () {
                 Navigator.of(context).push(
-                  MaterialPageRoute(builder: (context) => const TangoGameScreen()),
+                  MaterialPageRoute(
+                    builder: (context) => const TangoGameScreen(),
+                  ),
                 );
               },
             ),
@@ -200,7 +220,6 @@ class GamesDashboardScreen extends StatelessWidget {
       ),
     );
   }
-
 }
 
 class _GameCard extends StatelessWidget {
@@ -271,7 +290,10 @@ class _GameCard extends StatelessWidget {
                       ),
                     ],
                   ),
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 12,
+                  ),
                   child: Row(
                     children: [
                       iconWidget,
@@ -285,7 +307,7 @@ class _GameCard extends StatelessWidget {
                                 Text(
                                   title,
                                   style: const TextStyle(
-                                    fontSize: 18,
+                                    fontSize: 15,
                                     fontWeight: FontWeight.w900,
                                     color: Colors.black87,
                                   ),
@@ -320,12 +342,18 @@ class _GameCard extends StatelessWidget {
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(20),
                           ),
-                          padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 8),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 8,
+                          ),
                           elevation: 0,
                         ),
                         child: const Text(
                           'Solve',
-                          style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
                         ),
                       ),
                     ],
@@ -339,10 +367,7 @@ class _GameCard extends StatelessWidget {
             padding: const EdgeInsets.fromLTRB(16, 20, 16, 16),
             child: Text(
               description,
-              style: const TextStyle(
-                fontSize: 14,
-                color: Colors.black87,
-              ),
+              style: const TextStyle(fontSize: 14, color: Colors.black87),
             ),
           ),
         ],
