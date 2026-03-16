@@ -4,6 +4,7 @@ import 'ui_components.dart';
 import 'zip_game_screen.dart';
 import 'mini_sudoku_game_screen.dart';
 import 'tango_game_screen.dart';
+import 'color_blend_game_screen.dart';
 
 class GamesDashboardScreen extends StatelessWidget {
   const GamesDashboardScreen({super.key});
@@ -84,7 +85,7 @@ class GamesDashboardScreen extends StatelessWidget {
             ),
             const SizedBox(height: 16),
             _GameCard(
-              title: 'Mini Sudoku',
+              title: 'Sudoku',
               issueNumber: '#213',
               date: currentDateStr,
               description: 'Good for fans of the classic Sudoku puzzles.',
@@ -156,6 +157,40 @@ class GamesDashboardScreen extends StatelessWidget {
               onSolve: () {
                 Navigator.of(context).push(
                   MaterialPageRoute(builder: (context) => const TangoGameScreen()),
+                );
+              },
+            ),
+            const SizedBox(height: 16),
+            _GameCard(
+              title: 'Color Blend',
+              issueNumber: '#042',
+              date: currentDateStr,
+              description: 'Relax your mind by restoring the color gradient to perfect harmony.',
+              buttonColor: const Color(0xFFAC5FE6),
+              headerGradient: const LinearGradient(
+                colors: [Color(0xFFE8D5F6), Color(0xFFCBA1ED)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ),
+              iconWidget: Container(
+                width: 48,
+                height: 48,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(8),
+                  border: Border.all(color: Colors.black87, width: 2),
+                  gradient: const LinearGradient(
+                    colors: [Color(0xFF0A1128), Color(0xFFFF66CC)],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                ),
+                child: const Center(
+                  child: Icon(Icons.palette, color: Colors.white, size: 28),
+                ),
+              ),
+              onSolve: () {
+                Navigator.of(context).push(
+                  MaterialPageRoute(builder: (context) => const ColorBlendGameScreen()),
                 );
               },
             ),
