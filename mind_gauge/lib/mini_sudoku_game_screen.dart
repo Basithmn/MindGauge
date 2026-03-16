@@ -10,30 +10,31 @@ class MiniSudokuGameScreen extends StatefulWidget {
 }
 
 class _MiniSudokuGameScreenState extends State<MiniSudokuGameScreen> {
-  // A simple 4x4 Sudoku puzzle
   // 0 represents an empty, mutable cell
   final List<List<int>> initialGrid = [
-    [1, 0, 0, 4],
-    [0, 2, 0, 0],
-    [0, 0, 3, 0],
-    [4, 0, 0, 2],
+    [5, 3, 0, 0, 7, 0, 0, 0, 0],
+    [6, 0, 0, 1, 9, 5, 0, 0, 0],
+    [0, 9, 8, 0, 0, 0, 0, 6, 0],
+    [8, 0, 0, 0, 6, 0, 0, 0, 3],
+    [4, 0, 0, 8, 0, 3, 0, 0, 1],
+    [7, 0, 0, 0, 2, 0, 0, 0, 6],
+    [0, 6, 0, 0, 0, 0, 2, 8, 0],
+    [0, 0, 0, 4, 1, 9, 0, 0, 5],
+    [0, 0, 0, 0, 8, 0, 0, 7, 9],
   ];
 
-  late List<List<int>> initialGrid;
   late List<List<int>> grid;
   @override
   void initState() {
     super.initState();
     _resetGame();
   }
+
   void _resetGame() {
-    grid = List.generate(4, (r) => List.from(initialGrid[r]));
+    grid = List.generate(9, (r) => List.from(initialGrid[r]));
     setState(() {});
   }
 
-  
-
-  
   void _onCellTapped(int row, int col) {
     if (initialGrid[row][col] != 0) return;
 
@@ -76,13 +77,13 @@ class _MiniSudokuGameScreenState extends State<MiniSudokuGameScreen> {
     for (int blockRow = 0; blockRow < 9; blockRow += 3) {
       for (int blockCol = 0; blockCol < 9; blockCol += 3) {
         Set<int> blockSet = {};
-        
+
         for (int r = 0; r < 3; r++) {
           for (int c = 0; c < 3; c++) {
             blockSet.add(grid[blockRow + r][blockCol + c]);
           }
         }
-        
+
         if (blockSet.length != 9) return false;
       }
     }
@@ -142,7 +143,10 @@ class _MiniSudokuGameScreenState extends State<MiniSudokuGameScreen> {
           Expanded(
             child: Center(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16.0,
+                  vertical: 8.0,
+                ),
                 child: AspectRatio(
                   aspectRatio: 1,
                   child: Container(
@@ -152,9 +156,10 @@ class _MiniSudokuGameScreenState extends State<MiniSudokuGameScreen> {
                     child: GridView.builder(
                       shrinkWrap: true,
                       physics: const NeverScrollableScrollPhysics(),
-                      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                        crossAxisCount: 9,
-                      ),
+                      gridDelegate:
+                          const SliverGridDelegateWithFixedCrossAxisCount(
+                            crossAxisCount: 9,
+                          ),
                       itemCount: 81, // 9x9
                       itemBuilder: (context, index) {
                         final row = index ~/ 9;
@@ -163,19 +168,37 @@ class _MiniSudokuGameScreenState extends State<MiniSudokuGameScreen> {
                         final isInitial = initialGrid[row][col] != 0;
 
                         // Calculate border widths for 3x3 subgrids
-                        final double topBorder = (row > 0 && row % 3 == 0) ? 2.5 : 0.5;
-                        final double leftBorder = (col > 0 && col % 3 == 0) ? 2.5 : 0.5;
+                        final double topBorder = (row > 0 && row % 3 == 0)
+                            ? 2.5
+                            : 0.5;
+                        final double leftBorder = (col > 0 && col % 3 == 0)
+                            ? 2.5
+                            : 0.5;
 
                         return GestureDetector(
                           onTap: () => _onCellTapped(row, col),
                           child: Container(
                             decoration: BoxDecoration(
-                              color: isInitial ? Colors.grey[200] : Colors.white,
+                              color: isInitial
+                                  ? Colors.grey[200]
+                                  : Colors.white,
                               border: Border(
-                                top: BorderSide(color: Colors.black, width: topBorder),
-                                left: BorderSide(color: Colors.black, width: leftBorder),
-                                bottom: const BorderSide(color: Colors.black, width: 0.5),
-                                right: const BorderSide(color: Colors.black, width: 0.5),
+                                top: BorderSide(
+                                  color: Colors.black,
+                                  width: topBorder,
+                                ),
+                                left: BorderSide(
+                                  color: Colors.black,
+                                  width: leftBorder,
+                                ),
+                                bottom: const BorderSide(
+                                  color: Colors.black,
+                                  width: 0.5,
+                                ),
+                                right: const BorderSide(
+                                  color: Colors.black,
+                                  width: 0.5,
+                                ),
                               ),
                             ),
                             child: Center(
@@ -183,8 +206,12 @@ class _MiniSudokuGameScreenState extends State<MiniSudokuGameScreen> {
                                 value == 0 ? '' : value.toString(),
                                 style: TextStyle(
                                   fontSize: 18, // Scaled down for 9x9 fit
-                                  fontWeight: isInitial ? FontWeight.bold : FontWeight.w500,
-                                  color: isInitial ? Colors.black87 : const Color(0xFF3B9B62),
+                                  fontWeight: isInitial
+                                      ? FontWeight.bold
+                                      : FontWeight.w500,
+                                  color: isInitial
+                                      ? Colors.black87
+                                      : const Color(0xFF3B9B62),
                                 ),
                               ),
                             ),
