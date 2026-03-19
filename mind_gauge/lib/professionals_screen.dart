@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import 'package:url_launcher/url_launcher.dart';
+
 import 'models.dart';
 import 'ui_components.dart';
 class ProfessionalsScreen extends StatelessWidget {
@@ -14,6 +16,15 @@ class ProfessionalsScreen extends StatelessWidget {
     
     final doc = await FirebaseFirestore.instance.collection('users').doc(user.uid).get();
     return doc.data()?['location'] ?? "All";
+  }
+
+  // Helper function to launch the phone dialer
+  Future<void> _launchCaller(String phoneNumber) async {
+    final Uri url = Uri.parse('tel:$phoneNumber');
+    if (!await launchUrl(url)) {
+      // ignore: avoid_print
+      print("Could not launch $url");
+    }
   }
 
   @override
@@ -83,6 +94,7 @@ class ProfessionalsScreen extends StatelessWidget {
                     title: prof.name,
                     subtitle: "${prof.specialty}\n${prof.hospital}",
                     trailing: prof.phone,
+                    onPhonePressed: prof.phone != null ? () => _launchCaller(prof.phone!) : null,
                   );
                 },
               );
@@ -93,7 +105,7 @@ class ProfessionalsScreen extends StatelessWidget {
     );
   }
 
-  Widget _infoTile({required String title, required String subtitle, String? trailing}) {
+  Widget _infoTile({required String title, required String subtitle, String? trailing, VoidCallback? onPhonePressed}) {
     return Card(
       color: AppColors.cardColor,
       margin: const EdgeInsets.only(bottom: 12),
@@ -101,7 +113,12 @@ class ProfessionalsScreen extends StatelessWidget {
         leading: const CircleAvatar(backgroundColor: AppColors.primary, child: Icon(Icons.person, color: Colors.white)),
         title: Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
         subtitle: Text(subtitle),
-        trailing: trailing != null ? const Icon(Icons.phone, color: AppColors.secondary) : null,
+        trailing: trailing != null 
+          ? IconButton(
+              icon: const Icon(Icons.phone, color: AppColors.secondary),
+              onPressed: onPhonePressed,
+            ) 
+          : null,
       ),
     );
   }
@@ -109,6 +126,15 @@ class ProfessionalsScreen extends StatelessWidget {
 
 class ProfessionalsScreenAll extends StatelessWidget {
   const ProfessionalsScreenAll({super.key});
+
+  // Helper function to launch the phone dialer
+  Future<void> _launchCaller(String phoneNumber) async {
+    final Uri url = Uri.parse('tel:$phoneNumber');
+    if (!await launchUrl(url)) {
+      // ignore: avoid_print
+      print("Could not launch $url");
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -144,6 +170,12 @@ class ProfessionalsScreenAll extends StatelessWidget {
                   title: Text(prof.name, style: const TextStyle(fontWeight: FontWeight.bold)),
                   subtitle: Text("${prof.specialty}\nLocation: ${prof.location}"), // Now this works!
                   isThreeLine: true,
+                  trailing: prof.phone != null 
+                    ? IconButton(
+                        icon: const Icon(Icons.phone, color: AppColors.secondary),
+                        onPressed: () => _launchCaller(prof.phone!),
+                      )
+                    : null,
                 ),
               );
             },
