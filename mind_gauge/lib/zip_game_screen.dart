@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'dart:math';
+import 'dart:async';
+import 'package:confetti/confetti.dart';
 import 'ui_components.dart';
+import 'services/score_service.dart';
 
 const Color bgNavy = Color(0xFF0A1128);
 const Color neonCyan = AppColors.primary;
@@ -14,78 +17,177 @@ class ZipGameScreen extends StatefulWidget {
 }
 
 class _ZipGameScreenState extends State<ZipGameScreen> {
-  final int gridSize = 5;
-
-  // Game puzzle definition: Endpoints to connect
-  final Map<Color, List<Offset>> endpoints = {
-    Colors.red: [const Offset(0, 0), const Offset(4, 4)],
-    Colors.blue: [const Offset(0, 4), const Offset(4, 0)],
-    Colors.green: [const Offset(2, 0), const Offset(2, 4)],
-    Colors.orange: [const Offset(0, 2), const Offset(4, 2)],
-  };
+  final int gridSize = 6;
 
   List<Point<int>> path = [];
   bool isComplete = false;
 
-  late List<List<Color?>> grid;
-  Color? activeColor;
-
   late Map<Point<int>, int> _puzzleClues;
+  int _totalLandmarks = 0;
+  int _nextExpectedLandmark = 1;
+  late Point<int> _startPoint;
 
-  // A collection of different 5x5 Hamiltonian paths (snaking, spirals, etc.)
-  // to provide random layouts upon each game reset.
-  final List<Map<Point<int>, int>> _puzzleLevels = [
-    {
-      Point(4, 0): 1,
-      Point(4, 4): 5,
-      Point(0, 4): 9,
-      Point(0, 0): 13,
-      Point(3, 0): 16,
-      Point(3, 3): 19,
-      Point(1, 1): 25,
-    },
-    {
-      // Horizontal Snake
-      Point(0, 0): 1, Point(0, 4): 5, Point(1, 4): 6, Point(1, 0): 10,
-      Point(2, 0): 11, Point(2, 4): 15, Point(3, 4): 16, Point(3, 0): 20,
-      Point(4, 0): 21, Point(4, 4): 25,
-    },
-    {
-      // Inward Spiral
-      Point(0, 0): 1, Point(0, 4): 5, Point(4, 4): 9, Point(4, 0): 13,
-      Point(1, 0): 16, Point(1, 3): 19, Point(3, 3): 21, Point(3, 1): 23,
-      Point(2, 2): 25,
-    },
-    {
-      // Vertical Snake
-      Point(0, 0): 1, Point(4, 0): 5, Point(4, 1): 6, Point(0, 1): 10,
-      Point(0, 2): 11, Point(4, 2): 15, Point(4, 3): 16, Point(0, 3): 20,
-      Point(0, 4): 21, Point(4, 4): 25,
-    },
-    {
-      // Outward Spiral
-      Point(2, 2): 1, Point(1, 1): 5, Point(3, 3): 9, Point(0, 4): 13,
-      Point(0, 0): 17, Point(4, 0): 21, Point(4, 4): 25,
-    },
-  ];
+  late ConfettiController _confettiController;
+  Timer? _timer;
+  int _secondsElapsed = 0;
+  int? _bestTime;
 
   @override
   void initState() {
     super.initState();
-    _puzzleClues = _puzzleLevels[0]; // init default
+    _confettiController = ConfettiController(duration: const Duration(seconds: 3));
+    _loadBestTime();
     _resetGame();
   }
 
-  void _resetGame() {
-    grid = List.generate(gridSize, (_) => List.filled(gridSize, null));
-    // Place endpoints on the grid
-    for (var entry in endpoints.entries) {
-      grid[entry.value[0].dy.toInt()][entry.value[0].dx.toInt()] = entry.key;
-      grid[entry.value[1].dy.toInt()][entry.value[1].dx.toInt()] = entry.key;
+  @override
+  void dispose() {
+    _confettiController.dispose();
+    _timer?.cancel();
+    super.dispose();
+  }
+
+  Future<void> _loadBestTime() async {
+    final best = await ScoreService.getBestTime('zip_6x6');
+    if (mounted) {
+      setState(() {
+        _bestTime = best;
+      });
     }
-    activeColor = null;
+  }
+
+  void _startTimer() {
+    _timer?.cancel();
+    _secondsElapsed = 0;
+    _timer = Timer.periodic(const Duration(seconds: 1), (timer) {
+      setState(() {
+        _secondsElapsed++;
+      });
+    });
+  }
+
+  String _formatTime(int seconds) {
+    int m = seconds ~/ 60;
+    int s = seconds % 60;
+    return '${m.toString().padLeft(2, '0')}:${s.toString().padLeft(2, '0')}';
+  }
+
+  void _generatePuzzle() {
+    List<Point<int>> solutionPath = _generateHamiltonianPath();
+    
+    Random rand = Random();
+    int numClues = rand.nextInt(4) + 5; // 5 to 8 clues total
+    
+    List<int> clueIndices = [0, 35]; // Start and end always included
+    while (clueIndices.length < numClues) {
+      int idx = rand.nextInt(34) + 1; // 1 to 34
+      if (!clueIndices.contains(idx)) {
+        clueIndices.add(idx);
+      }
+    }
+    clueIndices.sort();
+    
+    _puzzleClues = {};
+    for (int i = 0; i < clueIndices.length; i++) {
+      _puzzleClues[solutionPath[clueIndices[i]]] = i + 1;
+    }
+    
+    _startPoint = solutionPath[0];
+    _totalLandmarks = clueIndices.length;
+  }
+
+  List<Point<int>> _generateHamiltonianPath() {
+    Random rand = Random();
+    
+    while(true) {
+      List<List<bool>> visited = List.generate(gridSize, (_) => List.filled(gridSize, false));
+      List<Point<int>> currentPath = [];
+      
+      Point<int> start = Point(rand.nextInt(gridSize), rand.nextInt(gridSize));
+      
+      bool dfs(Point<int> curr) {
+        currentPath.add(curr);
+        visited[curr.x][curr.y] = true;
+        
+        if (currentPath.length == gridSize * gridSize) return true;
+        
+        List<Point<int>> neighbors = [
+          Point(curr.x - 1, curr.y),
+          Point(curr.x + 1, curr.y),
+          Point(curr.x, curr.y - 1),
+          Point(curr.x, curr.y + 1),
+        ];
+        
+        neighbors.shuffle(rand);
+        
+        // Warnsdorff's heuristic
+        neighbors.sort((a, b) {
+          int countA = _countUnvisited(a, visited, gridSize);
+          int countB = _countUnvisited(b, visited, gridSize);
+          return countA.compareTo(countB);
+        });
+
+        for (var n in neighbors) {
+          if (n.x >= 0 && n.x < gridSize && n.y >= 0 && n.y < gridSize && !visited[n.x][n.y]) {
+            if (dfs(n)) return true;
+          }
+        }
+        
+        currentPath.removeLast();
+        visited[curr.x][curr.y] = false;
+        return false;
+      }
+      
+      if (dfs(start)) {
+        return currentPath;
+      }
+    }
+  }
+
+  int _countUnvisited(Point<int> p, List<List<bool>> visited, int size) {
+    if (p.x < 0 || p.x >= size || p.y < 0 || p.y >= size) return 999;
+    int count = 0;
+    List<Point<int>> neighbors = [
+      Point(p.x - 1, p.y), Point(p.x + 1, p.y),
+      Point(p.x, p.y - 1), Point(p.x, p.y + 1),
+    ];
+    for (var n in neighbors) {
+      if (n.x >= 0 && n.x < size && n.y >= 0 && n.y < size && !visited[n.x][n.y]) {
+        count++;
+      }
+    }
+    return count;
+  }
+
+  void _resetGame() {
+    _generatePuzzle();
     isComplete = false;
+    path.clear();
+    _recalculateProgress();
+    _startTimer();
     setState(() {});
+  }
+
+  void _recalculateProgress() {
+    _nextExpectedLandmark = 1;
+    for (var p in path) {
+      if (_puzzleClues.containsKey(p)) {
+        if (_puzzleClues[p] == _nextExpectedLandmark) {
+          _nextExpectedLandmark++;
+        }
+      }
+    }
+  }
+
+  void _showWrongMoveAlert(String msg) {
+    ScaffoldMessenger.of(context).clearSnackBars();
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text(msg),
+        duration: const Duration(milliseconds: 1500),
+        behavior: SnackBarBehavior.floating,
+      ),
+    );
   }
 
   void _handlePan(Offset localPosition, Size boardSize) {
@@ -102,9 +204,10 @@ class _ZipGameScreenState extends State<ZipGameScreen> {
     Point<int> currentPoint = Point(row, col);
 
     if (path.isEmpty) {
-      if (_puzzleClues[currentPoint] == 1) {
+      if (currentPoint == _startPoint) {
         setState(() {
           path.add(currentPoint);
+          _recalculateProgress();
         });
       }
     } else {
@@ -114,18 +217,26 @@ class _ZipGameScreenState extends State<ZipGameScreen> {
           int idx = path.indexOf(currentPoint);
           if (idx < path.length - 1) {
             path = path.sublist(0, idx + 1);
+            _recalculateProgress();
           }
         } else {
           Point<int> lastPoint = path.last;
           if ((lastPoint.x - currentPoint.x).abs() +
-                  (lastPoint.y - currentPoint.y).abs() ==
-              1) {
-            // Constraints: If this cell has a clue, does it match the coming length?
-            if (_puzzleClues.containsKey(currentPoint) &&
-                _puzzleClues[currentPoint] != path.length + 1) {
-              return; // Block adding
+                  (lastPoint.y - currentPoint.y).abs() == 1) {
+            
+            // Validation: Hit a landmark out of order?
+            if (_puzzleClues.containsKey(currentPoint)) {
+              int clueVal = _puzzleClues[currentPoint]!;
+              if (clueVal > _nextExpectedLandmark) {
+                _showWrongMoveAlert('Invalid move! Find landmark $_nextExpectedLandmark first.');
+                return;
+              }
+              // If it's < _nextExpectedLandmark, they somehow missed it or it's a bug.
+              // Actually, if it's already in the path, it would have been caught above.
             }
+            
             path.add(currentPoint);
+            _recalculateProgress();
             _checkWinCondition();
           }
         }
@@ -134,26 +245,48 @@ class _ZipGameScreenState extends State<ZipGameScreen> {
   }
 
   void _checkWinCondition() {
-    if (path.length == gridSize * gridSize) {
+    if (path.length == gridSize * gridSize && _nextExpectedLandmark > _totalLandmarks) {
       isComplete = true;
-      Future.delayed(const Duration(milliseconds: 300), _showWinDialog);
+      _handleWin();
     }
   }
 
+  Future<void> _handleWin() async {
+    _timer?.cancel();
+    
+    await ScoreService.setBestTime('zip_6x6', _secondsElapsed);
+    await _loadBestTime();
+
+    if (_secondsElapsed <= 180) {
+      _confettiController.play();
+    }
+
+    Future.delayed(const Duration(milliseconds: 300), _showWinDialog);
+  }
+
   void _showWinDialog() {
+    bool over3Mins = _secondsElapsed > 180;
+
     showDialog(
       context: context,
       barrierDismissible: false,
       builder: (context) => AlertDialog(
-        title: const Text('Puzzle Solved!'),
-        content: const Text('You successfully navigated the grid.'),
+        title: Text(
+          over3Mins ? 'Great perseverance!' : 'Puzzle Solved!',
+          style: const TextStyle(fontWeight: FontWeight.bold, color: Color(0xFFE56B24))
+        ),
+        content: Text(
+          over3Mins 
+            ? 'You finished in ${_formatTime(_secondsElapsed)}.\nBetter luck next time for a faster solve!'
+            : 'You successfully connected all landmarks in ${_formatTime(_secondsElapsed)}!'
+        ),
         actions: [
           TextButton(
             onPressed: () {
               Navigator.of(context).pop();
               _resetGame();
             },
-            child: const Text('Play Again'),
+            child: const Text('Play Again', style: TextStyle(color: Color(0xFFE56B24))),
           ),
           ElevatedButton(
             onPressed: () {
@@ -185,131 +318,166 @@ class _ZipGameScreenState extends State<ZipGameScreen> {
         elevation: 0,
         centerTitle: true,
       ),
-      body: Column(
+      body: Stack(
         children: [
-          // Header / Instructions
-          Container(
-            padding: const EdgeInsets.symmetric(vertical: 20),
-            child: const Text(
-              "Connect the dots in order to fill every cell.",
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w500,
-                fontSize: 16,
+          ListView(
+            children: [
+              // Header / Instructions
+              Container(
+                padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 24),
+                child: Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                    Text(
+                      'Time: ${_formatTime(_secondsElapsed)}',
+                      style: const TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w500,
+                        fontSize: 16,
+                      ),
+                    ),
+                    Text(
+                      _bestTime != null ? 'Streak: ${_formatTime(_bestTime!)}' : 'Streak: --:--',
+                      style: const TextStyle(
+                        color: neonCyan,
+                        fontWeight: FontWeight.w500,
+                        fontSize: 16,
+                      ),
+                    ),
+                  ],
+                ),
               ),
-            ),
-          ),
 
-          Expanded(
-            child: Center(
-              child: AspectRatio(
-                aspectRatio: 1,
-                child: Padding(
-                  padding: const EdgeInsets.all(16.0),
-                  child: LayoutBuilder(
-                    builder: (context, constraints) {
-                      Size boardSize = Size(
-                        constraints.maxWidth,
-                        constraints.maxHeight,
-                      );
-                      return GestureDetector(
-                        onPanStart: (details) =>
-                            _handlePan(details.localPosition, boardSize),
-                        onPanUpdate: (details) =>
-                            _handlePan(details.localPosition, boardSize),
-                        child: Stack(
-                          children: [
-                            // 1. Grid Background
-                            Container(
-                              decoration: BoxDecoration(
-                                color: bgNavy,
-                                borderRadius: BorderRadius.circular(16),
-                                border: Border.all(
-                                  color: neonCyan.withValues(alpha: 0.3),
-                                  width: 2,
-                                ),
-                              ),
-                            ),
-
-                            // 2. Custom Path Painter
-                            CustomPaint(
-                              size: boardSize,
-                              painter: _PathPainter(
-                                gridSize: gridSize,
-                                path: path,
-                                clues: _puzzleClues,
-                                emptyColor: Colors.white.withValues(alpha: 0.1),
-                                pathColor: neonCyan,
-                                startColor: neonMagenta,
-                              ),
-                            ),
-
-                            // 3. Foreground Texts
-                            GridView.builder(
-                              physics: const NeverScrollableScrollPhysics(),
-                              gridDelegate:
-                                  SliverGridDelegateWithFixedCrossAxisCount(
-                                    crossAxisCount: gridSize,
-                                  ),
-                              itemCount: gridSize * gridSize,
-                              itemBuilder: (context, index) {
-                                Point<int> p = Point(
-                                  index ~/ gridSize,
-                                  index % gridSize,
-                                );
-                                if (_puzzleClues.containsKey(p)) {
-                                  bool visited = path.contains(p);
-                                  return Center(
-                                    child: Text(
-                                      '${_puzzleClues[p]}',
-                                      style: TextStyle(
-                                        color: visited ? bgNavy : Colors.white,
-                                        fontWeight: FontWeight.w900,
-                                        fontSize: 20,
-                                      ),
+              Center(
+                child: AspectRatio(
+                    aspectRatio: 1,
+                    child: Padding(
+                      padding: const EdgeInsets.all(16.0),
+                      child: LayoutBuilder(
+                        builder: (context, constraints) {
+                          Size boardSize = Size(
+                            constraints.maxWidth,
+                            constraints.maxHeight,
+                          );
+                          return GestureDetector(
+                            onPanStart: (details) =>
+                                _handlePan(details.localPosition, boardSize),
+                            onPanUpdate: (details) =>
+                                _handlePan(details.localPosition, boardSize),
+                            child: Stack(
+                              children: [
+                                // 1. Grid Background
+                                Container(
+                                  decoration: BoxDecoration(
+                                    color: bgNavy,
+                                    borderRadius: BorderRadius.circular(16),
+                                    border: Border.all(
+                                      color: neonCyan.withValues(alpha: 0.3),
+                                      width: 2,
                                     ),
-                                  );
-                                }
-                                return const SizedBox();
-                              },
+                                  ),
+                                ),
+
+                                // 2. Custom Path Painter
+                                CustomPaint(
+                                  size: boardSize,
+                                  painter: _PathPainter(
+                                    gridSize: gridSize,
+                                    path: path,
+                                    clues: _puzzleClues,
+                                    emptyColor: Colors.white.withValues(alpha: 0.1),
+                                    startColor: neonMagenta,
+                                    endColor: neonCyan,
+                                  ),
+                                ),
+
+                                // 3. Foreground Texts
+                                GridView.builder(
+                                  physics: const NeverScrollableScrollPhysics(),
+                                  gridDelegate:
+                                      SliverGridDelegateWithFixedCrossAxisCount(
+                                        crossAxisCount: gridSize,
+                                      ),
+                                  itemCount: gridSize * gridSize,
+                                  itemBuilder: (context, index) {
+                                    Point<int> p = Point(
+                                      index ~/ gridSize,
+                                      index % gridSize,
+                                    );
+                                    if (_puzzleClues.containsKey(p)) {
+                                      bool visited = path.contains(p);
+                                      return Center(
+                                        child: Text(
+                                          '${_puzzleClues[p]}',
+                                          style: TextStyle(
+                                            color: visited ? bgNavy : Colors.white,
+                                            fontWeight: FontWeight.w900,
+                                            fontSize: 20,
+                                          ),
+                                        ),
+                                      );
+                                    }
+                                    return const SizedBox();
+                                  },
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
-                      );
-                    },
+                          );
+                        },
+                      ),
+                    ),
                   ),
+                ),
+
+              // Controls
+              Padding(
+                padding: const EdgeInsets.fromLTRB(24, 0, 24, 40),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: StyledButton(
+                        text: 'Undo',
+                        onPressed: () {
+                          if (path.length > 1) {
+                            setState(() {
+                              path.removeLast();
+                              _recalculateProgress();
+                            });
+                          }
+                        },
+                        color: Colors.white.withValues(alpha: 0.1),
+                      ),
+                    ),
+                    const SizedBox(width: 16),
+                    Expanded(
+                      child: StyledButton(
+                        text: 'Reset',
+                        onPressed: _resetGame,
+                        color: Colors.white.withValues(alpha: 0.1),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ),
+              const HowToPlayCard(
+                rules: [
+                  Text('Connect all the dots in a single continuous path.', style: TextStyle(fontSize: 16)),
+                  Text('You must visit the numbered landmarks in order (1, 2, 3...).', style: TextStyle(fontSize: 16)),
+                  Text('The path must cover every single cell on the board.', style: TextStyle(fontSize: 16)),
+                  Text('The path cannot cross itself.', style: TextStyle(fontSize: 16)),
+                ],
+              ),
+              const SizedBox(height: 40),
+            ],
           ),
-
-          // Controls
-          Padding(
-            padding: const EdgeInsets.fromLTRB(24, 0, 24, 40),
-            child: Row(
-              children: [
-                Expanded(
-                  child: StyledButton(
-                    text: 'Undo',
-                    onPressed: () {
-                      if (path.length > 1) {
-                        setState(() {
-                          path.removeLast();
-                        });
-                      }
-                    },
-                    color: Colors.white.withValues(alpha: 0.1),
-                  ),
-                ),
-                const SizedBox(width: 16),
-                Expanded(
-                  child: StyledButton(
-                    text: 'Reset',
-                    onPressed: _resetGame,
-                    color: Colors.white.withValues(alpha: 0.1),
-                  ),
-                ),
-              ],
+          Align(
+            alignment: Alignment.topCenter,
+            child: ConfettiWidget(
+              confettiController: _confettiController,
+              blastDirectionality: BlastDirectionality.explosive,
+              emissionFrequency: 0.05,
+              numberOfParticles: 20,
+              gravity: 0.1,
             ),
           ),
         ],
@@ -323,16 +491,16 @@ class _PathPainter extends CustomPainter {
   final List<Point<int>> path;
   final Map<Point<int>, int> clues;
   final Color emptyColor;
-  final Color pathColor;
   final Color startColor;
+  final Color endColor;
 
   _PathPainter({
     required this.gridSize,
     required this.path,
     required this.clues,
     required this.emptyColor,
-    required this.pathColor,
     required this.startColor,
+    required this.endColor,
   });
 
   @override
@@ -356,7 +524,6 @@ class _PathPainter extends CustomPainter {
         Point<int> p = Point(r, c);
 
         if (clues.containsKey(p)) {
-          // Draw bordered circle for unvisited clue nodes
           canvas.drawCircle(
             center,
             nodeRadius,
@@ -366,16 +533,20 @@ class _PathPainter extends CustomPainter {
           );
           canvas.drawCircle(center, nodeRadius, clueBorderPaint);
         } else {
-          // Normal empty connector node
           canvas.drawCircle(center, nodeRadius * 0.4, emptyPaint);
         }
       }
     }
 
-    // 2. Draw thick stroke path
+    // 2. Draw thick stroke path with flowing gradient
     if (path.isNotEmpty) {
+      final Rect bounds = Rect.fromLTWH(0, 0, size.width, size.height);
       final Paint linePaint = Paint()
-        ..color = pathColor
+        ..shader = LinearGradient(
+          colors: [startColor, endColor],
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+        ).createShader(bounds)
         ..strokeWidth = nodeRadius * 1.8
         ..strokeCap = StrokeCap.round
         ..strokeJoin = StrokeJoin.round
@@ -403,17 +574,7 @@ class _PathPainter extends CustomPainter {
           p.x * cellH + cellH / 2,
         );
 
-        // Emphasize the starting node with a different color (Magenta)
-        if (clues[p] == 1) {
-          canvas.drawCircle(
-            center,
-            nodeRadius * 0.9,
-            Paint()
-              ..color = startColor
-              ..style = PaintingStyle.fill,
-          );
-        } else if (clues.containsKey(p)) {
-          // Emphasize other matched clues (White)
+        if (clues.containsKey(p)) {
           canvas.drawCircle(
             center,
             nodeRadius * 0.9,
