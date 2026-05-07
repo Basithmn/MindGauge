@@ -399,7 +399,6 @@ class _MiniSudokuGameScreenState extends State<MiniSudokuGameScreen> {
                       ),
                     ),
                   ),
-                ),
               ),
               
               // Number Pad
@@ -424,6 +423,7 @@ class _MiniSudokuGameScreenState extends State<MiniSudokuGameScreen> {
                   icon: const Icon(Icons.refresh, color: AppColors.secondary),
                   label: const Text('Reset Puzzle', style: TextStyle(color: AppColors.secondary, fontWeight: FontWeight.bold)),
                 ),
+              ),
               const HowToPlayCard(
                 rules: [
                   Text('Fill the grid with numbers 1-6.', style: TextStyle(fontSize: 16)),
