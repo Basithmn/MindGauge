@@ -103,24 +103,62 @@ def analyze_sentiment():
         blob = TextBlob(text)
         polarity = blob.sentiment.polarity  # -1.0 to 1.0
 
-        # Refined Sentiment Logic
-        # 1. Keyword Overrides (for strong sentiment words that might be missed)
+        # Keyword-based detailed emotion detection
         lower_text = text.lower()
-        if any(w in lower_text for w in ['bad', 'sad', 'terrible', 'horrible', 'worst', 'hate', 'awful']):
-            polarity = min(polarity, -0.4) # Force negative
-        elif any(w in lower_text for w in ['great', 'wonderful', 'amazing', 'love', 'best', 'fantastic']):
-            polarity = max(polarity, 0.4) # Force positive
-
-        # 2. Adjusted Thresholds (TextBlob can be conservative)
-        if polarity > 0.1:  # Lowered from 0.3
-            emoji = "😊"
-            description = "Positive"
-        elif polarity < -0.1: # Raised from -0.3
-            emoji = "😞"
-            description = "Negative"
+        
+        # Determine specific emotion from keywords
+        if any(w in lower_text for w in ['excited', 'thrilled', 'overjoyed', 'ecstatic']):
+            emoji = "🤩"
+            description = "Excited"
+            polarity = 0.9
+        elif any(w in lower_text for w in ['grateful', 'thankful', 'blessed']):
+            emoji = "🙏"
+            description = "Grateful"
+            polarity = 0.8
+        elif any(w in lower_text for w in ['angry', 'mad', 'frustrated', 'furious', 'annoyed']):
+            emoji = "😠"
+            description = "Angry"
+            polarity = -0.6
+        elif any(w in lower_text for w in ['anxious', 'nervous', 'worried', 'scared', 'fear']):
+            emoji = "😰"
+            description = "Anxious"
+            polarity = -0.5
+        elif any(w in lower_text for w in ['stressed', 'overwhelmed', 'pressured']):
+            emoji = "😫"
+            description = "Stressed"
+            polarity = -0.6
+        elif any(w in lower_text for w in ['tired', 'exhausted', 'sleepy', 'fatigued']):
+            emoji = "😴"
+            description = "Tired"
+            polarity = 0.0
+        elif any(w in lower_text for w in ['confused', 'unsure', 'puzzled']):
+            emoji = "😕"
+            description = "Confused"
+            polarity = 0.0
+        elif any(w in lower_text for w in ['bored', 'uninspired', 'dull']):
+            emoji = "🥱"
+            description = "Bored"
+            polarity = 0.0
+        elif any(w in lower_text for w in ['proud', 'confident', 'accomplished']):
+            emoji = "😌"
+            description = "Proud"
+            polarity = 0.7
         else:
-            emoji = "😐"
-            description = "Neutral"
+            # Fallback to TextBlob polarity for generic Positive/Negative/Neutral
+            if any(w in lower_text for w in ['bad', 'sad', 'terrible', 'horrible', 'worst', 'hate', 'awful']):
+                polarity = min(polarity, -0.4) # Force negative
+            elif any(w in lower_text for w in ['great', 'wonderful', 'amazing', 'love', 'best', 'fantastic']):
+                polarity = max(polarity, 0.4) # Force positive
+
+            if polarity > 0.1:
+                emoji = "😊"
+                description = "Positive"
+            elif polarity < -0.1:
+                emoji = "😞"
+                description = "Negative"
+            else:
+                emoji = "😐"
+                description = "Neutral"
 
         return jsonify({
             "status": "success",

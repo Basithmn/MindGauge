@@ -1564,10 +1564,38 @@ class MockSentimentService {
     if (text.isEmpty) return _empty;
 
     final lower = text.toLowerCase();
-    if (lower.contains('down') || lower.contains('sad')) {
+    
+    if (lower.contains('excited') || lower.contains('thrilled') || lower.contains('overjoyed') || lower.contains('ecstatic')) {
+      return const SentimentResult("🤩", 0.9, "Excited");
+    }
+    if (lower.contains('grateful') || lower.contains('thankful') || lower.contains('blessed')) {
+      return const SentimentResult("🙏", 0.8, "Grateful");
+    }
+    if (lower.contains('angry') || lower.contains('mad') || lower.contains('frustrated') || lower.contains('furious') || lower.contains('annoyed')) {
+      return const SentimentResult("😠", -0.6, "Angry");
+    }
+    if (lower.contains('anxious') || lower.contains('nervous') || lower.contains('worried') || lower.contains('scared') || lower.contains('fear')) {
+      return const SentimentResult("😰", -0.5, "Anxious");
+    }
+    if (lower.contains('stressed') || lower.contains('overwhelmed') || lower.contains('pressured')) {
+      return const SentimentResult("😫", -0.6, "Stressed");
+    }
+    if (lower.contains('tired') || lower.contains('exhausted') || lower.contains('sleepy') || lower.contains('fatigued')) {
+      return const SentimentResult("😴", 0.0, "Tired");
+    }
+    if (lower.contains('confused') || lower.contains('unsure') || lower.contains('puzzled')) {
+      return const SentimentResult("😕", 0.0, "Confused");
+    }
+    if (lower.contains('bored') || lower.contains('uninspired') || lower.contains('dull')) {
+      return const SentimentResult("🥱", 0.0, "Bored");
+    }
+    if (lower.contains('proud') || lower.contains('confident') || lower.contains('accomplished')) {
+      return const SentimentResult("😌", 0.7, "Proud");
+    }
+    if (lower.contains('down') || lower.contains('sad') || lower.contains('bad') || lower.contains('terrible') || lower.contains('horrible') || lower.contains('worst') || lower.contains('hate') || lower.contains('awful')) {
       return const SentimentResult("😞", -0.7, "Feeling low");
     }
-    if (lower.contains('happy') || lower.contains('great')) {
+    if (lower.contains('happy') || lower.contains('great') || lower.contains('wonderful') || lower.contains('amazing') || lower.contains('love') || lower.contains('best') || lower.contains('fantastic') || lower.contains('good')) {
       return const SentimentResult("😊", 0.8, "Positive mood");
     }
 
