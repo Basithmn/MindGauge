@@ -290,75 +290,75 @@ class _ColorBlendGameScreenState extends State<ColorBlendGameScreen> {
                   ],
                 ),
               ),
-                child: Center(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
-                    child: AspectRatio(
-                      aspectRatio: 1,
-                      child: Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withValues(alpha: 0.1),
-                              blurRadius: 10,
-                              offset: const Offset(0, 4),
-                            )
-                          ],
+              Center(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 8.0),
+                  child: AspectRatio(
+                    aspectRatio: 1,
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.1),
+                            blurRadius: 10,
+                            offset: const Offset(0, 4),
+                          )
+                        ],
+                      ),
+                      padding: const EdgeInsets.all(8.0),
+                      child: GridView.builder(
+                        shrinkWrap: true,
+                        physics: const NeverScrollableScrollPhysics(),
+                        gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: gridSize,
+                          crossAxisSpacing: 2,
+                          mainAxisSpacing: 2,
                         ),
-                        padding: const EdgeInsets.all(8.0),
-                        child: GridView.builder(
-                          shrinkWrap: true,
-                          physics: const NeverScrollableScrollPhysics(),
-                          gridDelegate: SliverGridDelegateWithFixedCrossAxisCount(
-                            crossAxisCount: gridSize,
-                            crossAxisSpacing: 2,
-                            mainAxisSpacing: 2,
-                          ),
-                          itemCount: gridSize * gridSize,
-                          itemBuilder: (context, index) {
-                            final tile = tiles[index];
-                            final isSelected = selectedIndex == index;
+                        itemCount: gridSize * gridSize,
+                        itemBuilder: (context, index) {
+                          final tile = tiles[index];
+                          final isSelected = selectedIndex == index;
 
-                            return GestureDetector(
-                              onTap: () => _onTileTap(index),
-                              child: AnimatedContainer(
-                                duration: const Duration(milliseconds: 200),
-                                decoration: BoxDecoration(
-                                  color: tile.color,
-                                  borderRadius: BorderRadius.circular(tile.isLocked ? 12 : 4),
-                                  border: Border.all(
-                                    color: isSelected ? Colors.white : Colors.transparent,
-                                    width: isSelected ? 3 : 0,
-                                  ),
-                                  boxShadow: isSelected
-                                      ? [
-                                          BoxShadow(
-                                            color: Colors.black.withValues(alpha: 0.3),
-                                            blurRadius: 8,
-                                            spreadRadius: 1,
-                                          )
-                                        ]
-                                      : [],
+                          return GestureDetector(
+                            onTap: () => _onTileTap(index),
+                            child: AnimatedContainer(
+                              duration: const Duration(milliseconds: 200),
+                              decoration: BoxDecoration(
+                                color: tile.color,
+                                borderRadius: BorderRadius.circular(tile.isLocked ? 12 : 4),
+                                border: Border.all(
+                                  color: isSelected ? Colors.white : Colors.transparent,
+                                  width: isSelected ? 3 : 0,
                                 ),
-                                child: tile.isLocked
-                                    ? const Center(
-                                        child: Icon(
-                                          Icons.circle,
-                                          color: Colors.white30,
-                                          size: 8,
-                                        ),
-                                      )
-                                    : null,
+                                boxShadow: isSelected
+                                    ? [
+                                        BoxShadow(
+                                          color: Colors.black.withValues(alpha: 0.3),
+                                          blurRadius: 8,
+                                          spreadRadius: 1,
+                                        )
+                                      ]
+                                    : [],
                               ),
-                            );
-                          },
-                        ),
+                              child: tile.isLocked
+                                  ? const Center(
+                                      child: Icon(
+                                        Icons.circle,
+                                        color: Colors.white30,
+                                        size: 8,
+                                      ),
+                                    )
+                                  : null,
+                            ),
+                          );
+                        },
                       ),
                     ),
                   ),
                 ),
+              ),
               Padding(
                 padding: const EdgeInsets.all(32.0),
                 child: StyledButton(

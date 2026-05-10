@@ -6,7 +6,6 @@ import 'services.dart';
 import 'level2_adult_screen.dart';
 import 'level2_adolescent_screen.dart';
 import 'dashboard_screen.dart';
-import 'level2_adolescent_screen.dart';
 
 class AssessmentResultScreen extends StatelessWidget {
   final List<DomainScore> results;
