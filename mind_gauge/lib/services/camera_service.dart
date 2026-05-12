@@ -188,7 +188,7 @@ class CameraService {
             headers: {'Content-Type': 'application/json'},
             body: jsonEncode({'image': base64Image}),
           )
-          .timeout(const Duration(seconds: 5));
+          .timeout(const Duration(seconds: 15));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);

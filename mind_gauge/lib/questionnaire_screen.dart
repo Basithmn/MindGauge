@@ -415,6 +415,8 @@ class _QuestionnaireItemState extends State<QuestionnaireItem> {
                     setState(() {
                       widget.data.score = value;
                     });
+                  },
+                  onChangeEnd: (double value) {
                     widget.onInteraction?.call(); // Trigger capture
                   },
                   activeColor: AppColors.primary,
