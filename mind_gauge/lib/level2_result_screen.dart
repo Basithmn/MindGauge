@@ -119,7 +119,17 @@ class _Level2ResultScreenState extends State<Level2ResultScreen> {
                 ],
               ),
             ),
-            const SizedBox(height: 40),
+            const SizedBox(height: 15),
+            const Text(
+              "Disclaimer: This assessment is not a clinical diagnosis.",
+              style: TextStyle(
+                fontSize: 12,
+                color: Colors.redAccent,
+                fontStyle: FontStyle.italic,
+              ),
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: 25),
             if (_isSaved)
               const Row(
                 mainAxisAlignment: MainAxisAlignment.center,

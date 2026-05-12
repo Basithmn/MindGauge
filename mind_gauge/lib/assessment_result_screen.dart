@@ -68,7 +68,19 @@ class AssessmentResultScreen extends StatelessWidget {
                 ],
               ),
             ),
-            const SizedBox(height: 30),
+            const SizedBox(height: 10),
+            const Center(
+              child: Text(
+                "Disclaimer: This assessment is not a clinical diagnosis.",
+                style: TextStyle(
+                  fontSize: 12,
+                  color: Colors.redAccent,
+                  fontStyle: FontStyle.italic,
+                ),
+                textAlign: TextAlign.center,
+              ),
+            ),
+            const SizedBox(height: 20),
 
             // --- COMBINED HOLISTIC INSIGHT ---
             if (combinedReport != null) ...[
