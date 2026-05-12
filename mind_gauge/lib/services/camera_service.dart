@@ -22,7 +22,7 @@ class CameraService {
     if (kIsWeb) {
       return 'http://127.0.0.1:5000';
     }
-    return 'http://172.16.7.248:5000';
+    return 'http://172.16.8.70:5000';
   }
 
   bool get isInitialized => _isInitialized;

@@ -1,4 +1,5 @@
 flask
+flask-cors
 joblib
 lightgbm
 scikit-learn
@@ -8,3 +9,4 @@ onnxruntime
 opencv-python-headless
 numpy
 moviepy
+gunicorn
