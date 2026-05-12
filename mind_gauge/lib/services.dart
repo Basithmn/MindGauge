@@ -1391,9 +1391,9 @@ Future<String?> getMLDiagnosis(
   List<int> scores,
   int userAge,
 ) async {
-  String baseUrl = 'http://localhost:5000/predict';
-  if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
-    baseUrl = 'http://172.16.7.248:5000/predict';
+  String baseUrl = 'http://127.0.0.1:5000/predict';
+  if (!kIsWeb) {
+    baseUrl = 'https://mind-gauge-api.onrender.com/predict';
   }
 
   final url = Uri.parse(baseUrl);
@@ -1477,9 +1477,9 @@ Future<String?> getLevel2MLDiagnosis(
   List<int> scores,
   int userAge,
 ) async {
-  String baseUrl = 'http://localhost:5000/predict';
-  if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
-    baseUrl = 'http://172.16.7.248:5000/predict';
+  String baseUrl = 'http://127.0.0.1:5000/predict';
+  if (!kIsWeb) {
+    baseUrl = 'https://mind-gauge-api.onrender.com/predict';
   }
 
   final url = Uri.parse(baseUrl);
@@ -1523,9 +1523,9 @@ Future<String?> getLevel2MLDiagnosis(
 }
 
 Future<SentimentResult?> analyzeSentiment(String text) async {
-  String baseUrl = 'http://localhost:5000/analyze_sentiment';
-  if (!kIsWeb && defaultTargetPlatform == TargetPlatform.android) {
-    baseUrl = 'http://172.16.7.248:5000/analyze_sentiment';
+  String baseUrl = 'http://127.0.0.1:5000/analyze_sentiment';
+  if (!kIsWeb) {
+    baseUrl = 'https://mind-gauge-api.onrender.com/analyze_sentiment';
   }
 
   final url = Uri.parse(baseUrl);
