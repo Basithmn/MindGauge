@@ -1,0 +1,110 @@
+[33mab96eaf[m[33m ([m[1;36mHEAD[m[33m -> [m[1;32mmain[m[33m)[m final
+[33mdd5b673[m final
+[33mec5f3fe[m fix: resolve merge conflicts in firebase.json and update requirements.txt with version constraints; add Procfile for web server configuration
+[33m46149d4[m Merge branch 'main' of https://github.com/aparna13o2/MindGauge
+[33m2c16d19[m[33m ([m[1;31morigin/main[m[33m, [m[1;31morigin/HEAD[m[33m)[m add HTTP request to wake up Render's free tier on app startup
+[33m9ada070[m increased time out for camera detection.
+[33md7b3319[m fix: change FutureBuilder to StreamBuilder for real-time user data updates
+[33m2705656[m Merge branch 'main' of https://github.com/aparna13o2/MindGauge
+[33ma09bf97[m fix: update API base URLs for ML diagnosis and sentiment analysis
+[33m1c79919[m commit
+[33m58c63b4[m   _
+[33mbb48abe[m feat: update professionals list locations and add unique document ID generation
+[33mf46c5ba[m Merge branch 'main' of https://github.com/aparna13o2/MindGauge
+[33m0600dbe[m deployed
+[33m17897e0[m Merge branch 'main' of https://github.com/aparna13o2/MindGauge
+[33m80717c2[m chore: move requirements.txt to mind_gauge_ml_api directory
+[33m4d330b0[m requirements file moved
+[33m86c1a0f[m feat: implement CameraService with image streaming, luminance checks, and ML API integration
+[33me5db07a[m Merge branch 'main' of https://github.com/aparna13o2/MindGauge
+[33m047acc5[m add Firestore integration and upload functionality for professionals list
+[33md4b01b2[m  add assessment result visualization screens and devtools configuration
+[33m2655719[m update assessment result screen and color blend game screen components
+[33m82f5863[m implemented recognition of much wider range of emotions in journal entries.
+[33m84fd754[m implement 6x6 Sudoku game logic and UI with timer and win state tracking
+[33m276fd50[m implement core game framework including UI components, persistence service, and initial game logic modules.
+[33mdbb6a3b[m refactor training scripts and add noise injection for model evaluation
+[33mfc99a98[m add phone dialer functionality to professionals screen
+[33me86b461[m games update
+[33mfb1da43[m updated games
+[33m10eac1a[m games
+[33m4aa57fb[m Merge branch 'main' of https://github.com/aparna13o2/MindGauge
+[33m5e11632[m implement initial application structure with core screens, UI components, and services.
+[33mf71c529[m updating models to calculate accuracy and updated games
+[33mbc1cf86[m Add permissions for internet, camera, and audio; enhance assessment and dashboard navigation; implement daily puzzles for games; update dependencies and API error handling.
+[33m835fc4a[m frontend update
+[33mefdf75c[m resolved merge conflict
+[33m8011697[m Merge branch 'main' of https://github.com/aparna13o2/MindGauge
+[33m5c037b3[m photos, and structure change
+[33m96a7aab[m compatible for phones
+[33md670666[m aligning games under one section
+[33mc805530[m games
+[33m16697d0[m Merge branch 'main' of https://github.com/aparna13o2/MindGauge
+[33m4564828[m Logo visibility
+[33mad2d1f8[m password visibility
+[33mca705d0[m 2Merge branch 'main' of https://github.com/aparna13o2/MindGauge
+[33m189684c[m Updated main.dart with facial expression changes
+[33m546596a[m aspect ratio for phone use
+[33mcd3894b[m Refactor code for consistency and best practices across multiple files
+[33m22f1afa[m UI for recommendations
+[33md844720[m Initialize Flutter project structure with core dependencies, data models, and initial UI screens.
+[33m3d8e5a8[m Refactor UI text labels
+[33maad9727[m Merge branch 'main' of https://github.com/aparna13o2/MindGauge
+[33m1cf9f02[m Refactor color handling and improve ML diagnosis timeout in assessment screens
+[33mcd34528[m Add new Flask ML API for predictions, sentiment, and facial analysis, alongside new Flutter screens for assessments and issue display.
+[33m8672fee[m Update API base URLs and remove debug mode from ML API
+[33mfee299c[m Merge branch 'main' of https://github.com/aparna13o2/MindGauge
+[33mf95ff73[m Refactored app architecture
+[33m3f186e7[m Test for Expressions
+[33m934ec94[m Facial sentiment analysis
+[33m64b944f[m Updated machine learning models in ml_api
+[33me03b398[m Updated model files for adult and children models
+[33m066e0b9[m Updates to the scores and predicting various symptoms and disorders in adults and children
+[33m98246d4[m feat: Add camera service, ML API for emotion detection, and initial Firebase configuration.
+[33m3c7a955[m feat: Introduce Flask ML API for mental health diagnoses and sentiment analysis, and integrate with the Flutter application.
+[33mb00efff[m feat: Implement initial Python Flask ML API for diagnosis and sentiment analysis, and integrate client-side calls in Flutter.
+[33m973a69b[m Merge branch 'main' of https://github.com/aparna13o2/MindGauge
+[33mfdf5352[m Refactor ML diagnosis logic to standardize domain key handling and enhance response mapping; add Level 2 diagnosis function and update assessment result storage
+[33mb7f79fc[m folder update vscode settings
+[33me4ad6c2[m Level 1 diagnosis model update
+[33md221ae1[m Implement ML model integration and API for diagnosis predictions; add necessary model files and update AndroidManifest for cleartext traffic
+[33m789d5e7[m Add Professional model and enhance assessment result handling
+[33m67afe41[m added Recommendations,risk trends and professional
+[33m9d492a2[m added detected issues page
+[33m312adfd[m Merge branch 'main' of https://github.com/aparna13o2/MindGauge
+[33m8ed2d08[m Merge branch 'main' of https://github.com/aparna13o2/MindGauge
+[33mdf8b4fa[m Prediction models for adult and children mental health conditions
+[33ma756f2b[m Merge branch 'main' of https://github.com/aparna13o2/MindGauge
+[33m6bfdbd3[m Remove deprecated Flask backend implementation and associated database logic
+[33m467ee0b[m Refactor Firebase integration to use mock services for user and journal data handling
+[33m8adc309[m Merge branch 'main' of https://github.com/aparna13o2/MindGauge
+[33m40479c9[m Refactor questionnaire data structures and add Level 2 measures for adults and adolescents
+[33m7aaff70[m Fix merge conflicts in Firebase options and clean up main.dart
+[33mda24f91[m Add Firebase configuration updates and new logo asset; implement adolescent questionnaire thresholds
+[33mbdce845[m Add Firebase configuration and options for multiple platforms
+[33m93b11f7[m Added level1 adoloscent Questionnaire
+[33md4e60ad[m Integrate Firebase Auth
+[33m86ecfda[m DB connected
+[33m17cd3d9[m Domain names have been updated.
+[33m1d76688[m Level 1 diagnosis model update for adult and children datasets
+[33m6ab14bb[m Level 1 diagnosis model training and prediction scripts added for adult dataset
+[33m768c43d[m modified training scripts for adult mental health
+[33m5abbca3[m Adult mental health models and scores update
+[33m18093db[m Merge branch 'main' of https://github.com/aparna13o2/MindGauge
+[33maa8f870[m children models and data files
+[33m4b2128f[m rework dashboard
+[33m130d745[m WIP: Saving changes before checkout
+[33m43579a9[m Rework Main Dashboard to include Journaling and Calendar
+[33m7052d0b[m necessary csv files updated
+[33m4b1f1b4[m Save changes
+[33m6a96ecf[m children pattern identification
+[33m50d7187[m Small changes
+[33m94fd5b3[m All Questionnaires for adults added.
+[33mac260dc[m Implement login and register APIs; update Flutter app to use ApiService for authentication
+[33m1da8788[m Add initial Flask application with home route
+[33mc5e5619[m Implement Level 2 Questionnaire Depression and Anger
+[33mf70e3f8[m Merge branch 'main' of https://github.com/aparna13o2/MindGauge
+[33m34507a0[m 3rd
+[33m194e92f[m 2nd
+[33mb698926[m 1st
+[33mb125358[m initial commit
