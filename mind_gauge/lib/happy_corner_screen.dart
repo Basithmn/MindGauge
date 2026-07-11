@@ -157,11 +157,11 @@ class HappyCornerScreen extends StatelessWidget {
         backgroundColor: AppColors.secondary,
         foregroundColor: Colors.white,
       ),
-      body: FutureBuilder<DocumentSnapshot>(
-        future: FirebaseFirestore.instance
+      body: StreamBuilder<DocumentSnapshot>(
+        stream: FirebaseFirestore.instance
             .collection('users')
             .doc(user.uid)
-            .get(),
+            .snapshots(),
         builder: (context, userSnapshot) {
           if (userSnapshot.connectionState == ConnectionState.waiting) {
             return const Center(child: CircularProgressIndicator());

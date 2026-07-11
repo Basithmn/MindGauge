@@ -8,6 +8,7 @@ import 'login_screen.dart';
 import 'dashboard_screen.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:http/http.dart' as http;
 
 // --- CONFIGURATION ---
 // Global instance of FirebaseAuth
@@ -52,7 +53,19 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
+    _wakeUpRender();
     _navigate();
+  }
+
+  void _wakeUpRender() {
+    try {
+      // Fire-and-forget request to wake up Render's free tier
+      http.get(Uri.parse('https://mind-gauge-api.onrender.com/test'))
+          .timeout(const Duration(seconds: 5))
+          .catchError((_) => http.Response('Error', 500));
+    } catch (_) {
+      // Ignore any errors, this is just a ping
+    }
   }
 
   Future<void> _navigate() async {
