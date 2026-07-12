@@ -239,8 +239,19 @@ else:
     print(f"ONNX model not found at {model_path} or runtime missing.")
 
 # Load Face Cascade
-face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+# --- NEW SAFE CODE ---
+try:
+    cascade_path = cv2.data.haarcascades + 'haarcascade_frontalface_default.xml' if hasattr(cv2, 'data') else 'haarcascade_frontalface_default.xml'
+    if hasattr(cv2, 'CascadeClassifier'):
+        face_cascade = cv2.CascadeClassifier(cascade_path)
+    else:
+        print("Warning: cv2.CascadeClassifier not found in current OpenCV build.")
+        face_cascade = None
+except Exception as e:
+    print(f"Failed to load Haar Cascade: {e}")
+    face_cascade = None
 
+    
 def preprocess_face(face_img):
     # Resize to 64x64
     face_img = cv2.resize(face_img, (64, 64))
@@ -295,29 +306,51 @@ def analyze_face():
         return jsonify({"status": "error", "message": str(e)}), 500
 
 def process_single_frame(img):
-    """Processes a single frame and returns emotion data."""
+    """Processes a single frame and returns emotion data safely."""
     if img is None:
         return {"status": "error", "message": "Empty frame"}
 
-    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
-    faces = face_cascade.detectMultiScale(gray, 1.3, 5)
+    # 1. Check if face_cascade exists and loaded properly
+    if face_cascade is None or (hasattr(face_cascade, 'empty') and face_cascade.empty()):
+        return {
+            "status": "success",
+            "dominant_emotion": "neutral",
+            "score": 0.0,
+            "message": "Face cascade classifier unavailable",
+            "details": {}
+        }
+
+    try:
+        gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+        faces = face_cascade.detectMultiScale(gray, scaleFactor=1.3, minNeighbors=5)
+    except Exception as e:
+        print(f"Face Detection Error: {e}")
+        return {
+            "status": "success",
+            "dominant_emotion": "neutral",
+            "score": 0.0,
+            "message": f"Detection error: {str(e)}",
+            "details": {}
+        }
 
     if len(faces) == 0:
         return {
             "status": "success",
             "dominant_emotion": "neutral",
             "score": 0.0,
-            "message": "No face detected"
+            "message": "No face detected",
+            "details": {}
         }
 
-    # Process the largest face
-    (x, y, w, h) = sorted(faces, key=lambda f: f[2]*f[3], reverse=True)[0]
+    # 2. Process the largest detected face
+    (x, y, w, h) = sorted(faces, key=lambda f: f[2] * f[3], reverse=True)[0]
     face_roi = img[y:y+h, x:x+w]
 
     dominant_emotion = "neutral"
     score = 0.0
     details = {}
 
+    # 3. ONNX Model Inference
     if ort_session:
         try:
             processed_face = preprocess_face(face_roi)
@@ -327,17 +360,18 @@ def process_single_frame(img):
             ort_outs = ort_session.run(None, {input_name: processed_face})
             embeddings = ort_outs[0]
             
-            # Getting probabilities
+            # Compute probabilities
             probs = softmax(embeddings[0])
             
             # Get dominant emotion
-            idx = np.argmax(probs)
-            dominant_emotion = EMOTIONS[idx]
+            idx = int(np.argmax(probs))
+            dominant_emotion = str(EMOTIONS[idx])
             score = float(probs[idx])
             
-            details = {emotion: float(prob) for emotion, prob in zip(EMOTIONS, probs)}
+            # Convert numpy float values to standard Python floats for Flask JSON serialization
+            details = {str(emotion): float(prob) for emotion, prob in zip(EMOTIONS, probs)}
         except Exception as e:
-            print(f"Inference Error: {e}")
+            print(f"ONNX Inference Error: {e}")
     
     return {
         "status": "success",
@@ -345,7 +379,6 @@ def process_single_frame(img):
         "score": score,
         "details": details
     }
-
 import tempfile
 
 @app.route('/analyze_video', methods=['POST'])
