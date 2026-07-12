@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 flask>=3.0.0
 flask-cors>=4.0.0
 gunicorn>=21.2.0
@@ -10,3 +11,17 @@ textblob>=0.17.0
 onnxruntime>=1.16.0
 opencv-python-headless>=4.8.0
 moviepy>=1.0.3
+=======
+flask
+flask-cors
+joblib
+lightgbm
+scikit-learn
+pandas
+textblob
+onnxruntime
+opencv-python-headless
+numpy
+moviepy
+gunicorn
+>>>>>>> 2c16d19956107aa78fc06beb9a4eeff41b68b2c3
