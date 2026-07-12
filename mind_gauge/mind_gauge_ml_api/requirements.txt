@@ -7,6 +7,6 @@ pandas
 textblob
 onnxruntime
 opencv-python-headless==4.9.0.80
-numpy
+numpy>=1.26.0,<2.0.0
 moviepy
 gunicorn

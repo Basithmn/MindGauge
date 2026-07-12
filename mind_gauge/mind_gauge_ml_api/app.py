@@ -202,11 +202,7 @@ def test_sentiment_endpoint():
         "results": results
     })
 
-    return jsonify({
-        "status": "success",
-        "message": "Self-test completed",
-        "results": results
-    })
+    
 
 # --- FACIAL EXPRESSION ANALYSIS (ONNX) ---
 import cv2
